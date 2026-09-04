@@ -6,7 +6,38 @@ import os
 from utils.portal_guard import verifier_acces_depuis_portail, deconnecter_et_retourner_portail
 
 # ==========================================
-# 1. MOTEUR PDF INSTITUTIONNEL (Nettoyé Unicode)
+# 0. BOUCLIER DE SANITISATION UNICODE (PDF)
+# ==========================================
+def nettoyer_texte_pdf(texte: str) -> str:
+    """Transforme les caractères Unicode complexes en équivalents Latin-1 compatibles Helvetica."""
+    if not texte:
+        return ""
+    
+    replacements = {
+        "…": "...",
+        "—": "-",
+        "–": "-",
+        "’": "'",
+        "‘": "'",
+        "“": '"',
+        "”": '"',
+        "«": '"',
+        "»": '"',
+        "•": "-",
+        "°": " deg.",
+        "œ": "oe",
+        "Œ": "OE",
+        "æ": "ae",
+        "Æ": "AE",
+    }
+    
+    for char_invalide, remplacement in replacements.items():
+        texte = texte.replace(char_invalide, remplacement)
+        
+    return texte
+
+# ==========================================
+# 1. MOTEUR PDF INSTITUTIONNEL (Pro)
 # ==========================================
 class GenerateurProtocolePro(FPDF):
     def __init__(self, site_nom, mission_titre, horaire):
@@ -21,7 +52,7 @@ class GenerateurProtocolePro(FPDF):
         if os.path.exists("logo_gouv.png"):
             self.image("logo_gouv.png", x=10, y=8, w=28)
 
-        # En-tête administratif (Utilisation stricte du jeu de caractères Latin-1)
+        # En-tête administratif
         self.set_font("helvetica", "B", 11)
         self.set_text_color(20, 35, 60)
         self.cell(0, 5, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
@@ -36,10 +67,10 @@ class GenerateurProtocolePro(FPDF):
         self.line(10, 25, 200, 25)
         self.ln(6)
 
-        # Cartouche de la mission (Sanitisation des caractères typographiques)
-        titre_clean = self.mission_titre.upper().replace("—", "-").replace("–", "-").replace("’", "'")
-        site_clean = self.site_nom.upper().replace("—", "-").replace("–", "-").replace("’", "'")
-        horaire_clean = str(self.horaire).replace("—", "-").replace("–", "-").replace("’", "'")
+        # Cartouche de la mission (Saisie assainie)
+        titre_clean = nettoyer_texte_pdf(self.mission_titre).upper()
+        site_clean = nettoyer_texte_pdf(self.site_nom).upper()
+        horaire_clean = nettoyer_texte_pdf(str(self.horaire))
         
         self.set_fill_color(240, 243, 246)
         self.set_font("helvetica", "B", 11)
@@ -62,7 +93,7 @@ def creer_pdf(nom_site, mission, secteurs):
         pdf.set_font("helvetica", "B", 10)
         pdf.set_fill_color(215, 228, 242)
         
-        nom_sec_clean = secteur['nom_secteur'].upper().replace("—", "-").replace("–", "-").replace("’", "'")
+        nom_sec_clean = nettoyer_texte_pdf(secteur['nom_secteur']).upper()
         pdf.cell(0, 7, f" SECTEUR : {nom_sec_clean}", fill=True, ln=True)
         pdf.ln(2)
         
@@ -70,8 +101,8 @@ def creer_pdf(nom_site, mission, secteurs):
         pdf.set_font("helvetica", "", 10)
         
         for consigne in consignes:
-            action = consigne['type_action'].upper().replace("—", "-").replace("–", "-").replace("’", "'")
-            desc = consigne['description'].replace("—", "-").replace("–", "-").replace("’", "'")
+            action = nettoyer_texte_pdf(consigne['type_action']).upper()
+            desc = nettoyer_texte_pdf(consigne['description'])
             
             pdf.cell(5, 6, "") 
             pdf.cell(0, 6, f"[  ] {action} : {desc}", ln=True)
