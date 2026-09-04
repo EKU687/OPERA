@@ -39,11 +39,12 @@ class GenerateurProtocolePro(FPDF):
         # Cartouche de la mission (Sanitisation des caractères typographiques)
         titre_clean = self.mission_titre.upper().replace("—", "-").replace("–", "-").replace("’", "'")
         site_clean = self.site_nom.upper().replace("—", "-").replace("–", "-").replace("’", "'")
+        horaire_clean = str(self.horaire).replace("—", "-").replace("–", "-").replace("’", "'")
         
         self.set_fill_color(240, 243, 246)
         self.set_font("helvetica", "B", 11)
         self.set_text_color(0, 0, 0)
-        self.cell(0, 8, f" PROTOCOLE : {site_clean} - {titre_clean} ({self.horaire})", fill=True, ln=True)
+        self.cell(0, 8, f" PROTOCOLE : {site_clean} - {titre_clean} ({horaire_clean})", fill=True, ln=True)
         self.ln(4)
 
     def footer(self):
@@ -193,21 +194,38 @@ try:
                         else:
                             st.error("Le nom du site est obligatoire.")
 
-            # Bloc 2 : Mission
+            # Bloc 2 : Mission (Gestion Souple : Fixe ou Récurrente)
             with st.expander("🕒 2. Ajouter une Mission", expanded=False):
                 if sites:
                     site_rattache = st.selectbox("Lier au site :", options_sites.keys(), key="select_admin_mission")
                     with st.form("form_mission", clear_on_submit=True):
-                        titre_mission = st.text_input("Type de mission (ex: Ronde de fermeture)")
-                        horaire = st.time_input("Horaire cible", datetime.time(20, 00))
+                        titre_mission = st.text_input("Type de mission (ex: Ronde de fermeture, Ronde Intérieure)")
+                        
+                        mode_horaire = st.radio(
+                            "Désignation de la fréquence / horaire :",
+                            ["Horaire fixe (ex: 20:00)", "Fréquence récurrente (ex: Toutes les heures)"],
+                            horizontal=True
+                        )
+                        
+                        col_h1, col_h2 = st.columns(2)
+                        with col_h1:
+                            horaire_fixe = st.time_input("Horaire fixe (si applicable)", datetime.time(20, 00))
+                        with col_h2:
+                            frequence_texte = st.selectbox(
+                                "Fréquence (si récurrente)", 
+                                ["Toutes les heures", "Toutes les 2 heures", "Toutes les 3 heures", "Continu / Permanence"]
+                            )
+                        
                         if st.form_submit_button("Enregistrer la mission"):
                             if titre_mission.strip():
+                                horaire_final = horaire_fixe.strftime("%H:%M") if "fixe" in mode_horaire else frequence_texte
+                                
                                 supabase.table("opera_missions").insert({
                                     "site_id": options_sites[site_rattache],
                                     "titre_mission": titre_mission,
-                                    "horaire_cible": horaire.strftime("%H:%M")
+                                    "horaire_cible": horaire_final
                                 }).execute()
-                                st.success("Mission enregistrée.")
+                                st.success(f"Mission '{titre_mission}' ({horaire_final}) enregistrée.")
                                 st.rerun()
                             else:
                                 st.error("Le titre de la mission est obligatoire.")
@@ -235,7 +253,6 @@ try:
                         ordre_passage = st.number_input("Ordre de passage", min_value=1, value=prochain_ordre_sec, step=1)
                         if st.form_submit_button("Enregistrer le secteur"):
                             if nom_secteur.strip():
-                                # Décalage automatique des secteurs
                                 sec_a_decaler = supabase.table("opera_secteurs").select("id, ordre_passage").eq("mission_id", mission_id_cible).gte("ordre_passage", ordre_passage).execute().data
                                 for s in sec_a_decaler:
                                     supabase.table("opera_secteurs").update({"ordre_passage": s["ordre_passage"] + 1}).eq("id", s["id"]).execute()
@@ -278,7 +295,6 @@ try:
                         
                         if st.form_submit_button("Enregistrer la consigne"):
                             if description.strip():
-                                # DÉCALAGE AUTOMATIQUE (+1 aux consignes existantes >= ordre_execution)
                                 consignes_a_decaler = supabase.table("opera_consignes").select("id, ordre_execution").eq("secteur_id", secteur_id_cible).gte("ordre_execution", ordre_execution).execute().data
                                 for c in consignes_a_decaler:
                                     supabase.table("opera_consignes").update({"ordre_execution": c["ordre_execution"] + 1}).eq("id", c["id"]).execute()
@@ -344,10 +360,8 @@ try:
                             sec_id = obj_con['secteur_id']
                             ordre_suppr = obj_con['ordre_execution']
                             
-                            # 1. Suppression
                             supabase.table("opera_consignes").delete().eq("id", obj_con['id']).execute()
                             
-                            # 2. Réalignement (-1 aux suivants)
                             realignement = supabase.table("opera_consignes").select("id, ordre_execution").eq("secteur_id", sec_id).gt("ordre_execution", ordre_suppr).execute().data
                             for c in realignement:
                                 supabase.table("opera_consignes").update({"ordre_execution": c["ordre_execution"] - 1}).eq("id", c["id"]).execute()
