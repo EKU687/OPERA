@@ -2,7 +2,7 @@ import streamlit as st
 from supabase import create_client, Client
 from utils.portal_guard import verifier_acces_depuis_portail, deconnecter_et_retourner_portail
 from views.view_rondes import afficher_vue_rondes
-from views.view_sop import afficher_vue_sop
+from pdf_engines.pdf_sop import creer_pdf_sop
 
 # Configuration Globale Interface
 st.set_page_config(
