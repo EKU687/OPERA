@@ -23,7 +23,7 @@ class GenerateurSopPro(FPDF):
         self.site_nom = site_nom
         self.code_doc = code_doc
         self.titre = titre
-        self.version = version
+        self.version = version if version else "v1.0"
         self.date_ver = date_ver
         self.redacteur = redacteur
         
@@ -69,14 +69,16 @@ class GenerateurSopPro(FPDF):
         maintenant_nc = datetime.datetime.now(ZoneInfo("Pacific/Noumea"))
         date_edition = maintenant_nc.strftime("%d/%m/%Y a %H:%M")
         
+        # Formatage identique au moteur de rondes
         self.cell(0, 10, f"{self.code_doc} - {self.version} - Genere le {date_edition} - Page {self.page_no()}/{{nb}}", align="C")
 
 def creer_pdf_sop(proc, site_nom):
+    version_doc = proc.get('version', 'v1.0')
     pdf = GenerateurSopPro(
         site_nom,
         nettoyer_texte_pdf(proc['code_doc']),
         nettoyer_texte_pdf(proc['titre']),
-        nettoyer_texte_pdf(proc['version']),
+        nettoyer_texte_pdf(version_doc),
         str(proc['date_version']),
         nettoyer_texte_pdf(proc['redacteur'])
     )
@@ -147,7 +149,7 @@ def creer_pdf_sop(proc, site_nom):
         pdf.multi_cell(w_effective, 5, nettoyer_texte_pdf(proc['points_vigilance']), border='LRB')
         pdf.ln(6)
 
-    # 4. Historique & Gouvernance
+    # 4. Historique & Gouvernance (Alignement strict 35mm / 25mm / 65mm / 65mm)
     if pdf.get_y() + 20 > 270:
         pdf.add_page()
 
@@ -160,9 +162,9 @@ def creer_pdf_sop(proc, site_nom):
     
     pdf.set_x(10)
     pdf.set_font("helvetica", "", 8)
-    pdf.cell(40, 5, f" Date : {date_fr}", border=1)
-    pdf.cell(30, 5, f" Version : {proc['version']}", border=1)
-    pdf.cell(60, 5, f" Redacteur : {nettoyer_texte_pdf(proc['redacteur'])}", border=1)
-    pdf.cell(60, 5, " Validation : Direction des Securites", border=1, ln=True)
+    pdf.cell(35, 5, f" Date : {date_fr}", border=1)
+    pdf.cell(25, 5, f" Version : {version_doc}", border=1)
+    pdf.cell(65, 5, f" Redacteur : {nettoyer_texte_pdf(proc['redacteur'])}", border=1)
+    pdf.cell(65, 5, " Validation : Direction des Securites", border=1, ln=True)
 
     return bytes(pdf.output())

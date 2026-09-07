@@ -18,19 +18,18 @@ def formater_date_fr(date_val):
     return str(date_val)
 
 class GenerateurProtocolePro(FPDF):
-    def __init__(self, site_nom, mission_titre, horaire):
+    def __init__(self, site_nom, mission_titre, horaire, version="v1.0"):
         super().__init__()
         self.site_nom = site_nom
         self.mission_titre = mission_titre
         self.horaire = horaire
+        self.version = version
         
-        # Marge supérieure fixée à 41 mm pour réserver l'espace du header
         self.set_margins(10, 41, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def add_page(self, orientation="", format="", same=False):
         super().add_page(orientation=orientation, format=format, same=same)
-        # Positionne le curseur Y sous la ligne bleue (Y=28) sur CHAQUE nouvelle page
         self.set_y(41)
 
     def header(self):
@@ -56,7 +55,6 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne bleue de séparation à Y=28 mm
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 28, 200, 28)
@@ -66,18 +64,23 @@ class GenerateurProtocolePro(FPDF):
         self.set_font("helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
         
-        # Horodatage sur le fuseau horaire Pacific/Noumea
         maintenant_nc = datetime.datetime.now(ZoneInfo("Pacific/Noumea"))
         date_edition = maintenant_nc.strftime("%d/%m/%Y a %H:%M")
         
-        self.cell(0, 10, f"Document Officiel OPERA - Genere le {date_edition} - Page {self.page_no()}/{{nb}}", align="C")
+        # Ajout du numéro de version dans le pied de page
+        self.cell(0, 10, f"Document Officiel OPERA - {self.version} - Genere le {date_edition} - Page {self.page_no()}/{{nb}}", align="C")
 
 def creer_pdf_ronde(nom_site, mission, secteurs):
-    pdf = GenerateurProtocolePro(nom_site, mission['titre_mission'], mission['horaire_cible'])
+    version_doc = mission.get('version', 'v1.0')
+    pdf = GenerateurProtocolePro(
+        nom_site, 
+        mission['titre_mission'], 
+        mission['horaire_cible'],
+        version=version_doc
+    )
     pdf.add_page()
     w_effective = pdf.epw
 
-    # Page 1 : Cartouche de Mission calé à Y=32
     pdf.set_y(32)
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
@@ -120,6 +123,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     if pdf.get_y() + 20 > 270:
         pdf.add_page()
 
+    # Cartouche de Gouvernance avec Version explicite
     pdf.ln(2)
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
@@ -127,15 +131,12 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.cell(w_effective, 5, " HISTORIQUE DES MODIFICATIONS & GOUVERNANCE", ln=True)
     
     date_fr = formater_date_fr(mission.get('date_creation'))
-    horaire_txt = horaire_clean
-    if len(horaire_txt) > 22:
-        horaire_txt = horaire_txt[:19] + "..."
 
     pdf.set_x(10)
     pdf.set_font("helvetica", "", 8)
     pdf.cell(35, 5, f" Date : {date_fr}", border=1)
-    pdf.cell(45, 5, f" Horaire : {horaire_txt}", border=1)
-    pdf.cell(55, 5, f" Editeur : Eric Kuter", border=1)
-    pdf.cell(55, 5, " Validation : PC Surete GNC", border=1, ln=True)
+    pdf.cell(25, 5, f" Version : {version_doc}", border=1)
+    pdf.cell(65, 5, f" Editeur : Eric Kuter", border=1)
+    pdf.cell(65, 5, " Validation : PC Surete GNC", border=1, ln=True)
 
     return bytes(pdf.output())
