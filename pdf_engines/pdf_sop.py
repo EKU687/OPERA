@@ -26,13 +26,12 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        # Marge supérieure fixée à 50 mm
-        self.set_margins(10, 50, 10)
+        # Marge supérieure stricte à 35 mm
+        self.set_margins(10, 35, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        self.set_top_margin(50)
-
+        # Ne JAMAIS modifier les marges à l'intérieur de header() !
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
         dossier_assets = os.path.join(racine_projet, "assets")
@@ -44,9 +43,11 @@ class GenerateurSopPro(FPDF):
                     logo_path = os.path.join(dossier_assets, fichier)
                     break
 
+        # Logo de Y=3 à Y=23
         if logo_path and os.path.exists(logo_path):
             self.image(logo_path, x=10, y=3, w=15)
 
+        # En-tête administratif à droite
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
         self.set_xy(10, 6)
@@ -55,9 +56,10 @@ class GenerateurSopPro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
+        # Ligne bleue à Y=28
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 30, 200, 30)
+        self.line(10, 28, 200, 28)
 
     def footer(self):
         self.set_y(-15)
@@ -77,6 +79,9 @@ def creer_pdf_sop(proc, site_nom):
     pdf.add_page()
     w_effective = pdf.epw 
 
+    # Positionnement explicite du cartouche sous la ligne bleue (Y=33)
+    pdf.set_y(33)
+
     # Cartouche Titre + Référence
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
@@ -88,7 +93,7 @@ def creer_pdf_sop(proc, site_nom):
 
     pdf.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
     pdf.cell(60, 8, f" REF : {proc['code_doc']} ", fill=True, ln=True, align="R")
-    pdf.ln(5)
+    pdf.ln(4)
 
     # 1. Cadre & Domaine
     pdf.set_x(10)

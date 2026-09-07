@@ -23,15 +23,11 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
-        # Marge supérieure à 50mm pour caler le contenu SOUS le header (Y=50)
-        self.set_margins(10, 50, 10)
+        # Marge supérieure à 35 mm
+        self.set_margins(10, 35, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        # Assure le calage automatique sur les pages 2, 3...
-        self.set_top_margin(50)
-
-        # 1. Chargement du logo depuis assets/
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
         dossier_assets = os.path.join(racine_projet, "assets")
@@ -46,7 +42,6 @@ class GenerateurProtocolePro(FPDF):
         if logo_path and os.path.exists(logo_path):
             self.image(logo_path, x=10, y=3, w=15)
 
-        # 2. En-tête administratif
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
         self.set_xy(10, 6)
@@ -55,10 +50,9 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # 3. Ligne de séparation bleue (Y=30 mm)
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 30, 200, 30)
+        self.line(10, 28, 200, 28)
 
     def footer(self):
         self.set_y(-15)
@@ -72,6 +66,9 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
 
+    # Positionnement sous la ligne bleue
+    pdf.set_y(33)
+
     # Cartouche de Mission
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
@@ -83,9 +80,9 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     
     pdf.cell(130, 8, f" PROTOCOLE DE RONDE : {titre_clean}", fill=True, ln=False)
     pdf.cell(60, 8, f" SITE : {site_clean} ({horaire_clean}) ", fill=True, ln=True, align="R")
-    pdf.ln(5)
+    pdf.ln(4)
     
-    # Parcours par Secteur & Consignes Checkbox
+    # Parcours par Secteur
     for secteur in secteurs:
         pdf.set_x(10)
         pdf.set_font("helvetica", "B", 10)
@@ -108,7 +105,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
             pdf.multi_cell(w_effective - 5, 5, f"[  ] {action} : {desc}")
         pdf.ln(3)
         
-    # Cartouche de Gouvernance
+    # Gouvernance
     pdf.ln(2)
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
