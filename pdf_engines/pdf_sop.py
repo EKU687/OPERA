@@ -55,48 +55,65 @@ def creer_pdf_sop(proc, site_nom):
     )
     pdf.add_page()
     
-    # Cadre & Domaine
+    # Largeur utile de la page (210mm - 20mm de marges = 190mm)
+    w_effective = pdf.epw 
+
+    # 1. Cadre & Domaine
+    pdf.set_x(10)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 6, " 1. CADRE & DOMAINE D'APPLICATION", fill=True, ln=True)
+    pdf.cell(w_effective, 6, " 1. CADRE & DOMAINE D'APPLICATION", fill=True, ln=True)
     pdf.ln(2)
     
+    pdf.set_x(10)
     pdf.set_font("helvetica", "", 9)
-    pdf.multi_cell(0, 5, f"Objectif : {nettoyer_texte_pdf(proc['objectif'])}\nDomaine : {nettoyer_texte_pdf(proc['domaine_application'])}\nMateriel/Docs : {nettoyer_texte_pdf(proc.get('materiel_requis', 'N/A'))}")
+    txt_cadre = f"Objectif : {nettoyer_texte_pdf(proc['objectif'])}\nDomaine : {nettoyer_texte_pdf(proc['domaine_application'])}\nMateriel/Docs : {nettoyer_texte_pdf(proc.get('materiel_requis', 'N/A'))}"
+    pdf.multi_cell(w_effective, 5, txt_cadre)
     pdf.ln(4)
     
-    # Déroulement
+    # 2. Déroulement
+    pdf.set_x(10)
     pdf.set_font("helvetica", "B", 10)
-    pdf.cell(0, 6, " 2. DEROULEMENT DE LA PROCEDURE", fill=True, ln=True)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(w_effective, 6, " 2. DEROULEMENT DE LA PROCEDURE", fill=True, ln=True)
     pdf.ln(2)
     
     pdf.set_font("helvetica", "", 9)
     deroulement = proc.get('deroulement', [])
     if isinstance(deroulement, list):
         for idx, etape in enumerate(deroulement, start=1):
+            pdf.set_x(10)
             txt = etape if isinstance(etape, str) else etape.get('action', '')
-            pdf.multi_cell(0, 5, f"{idx}. {nettoyer_texte_pdf(txt)}")
+            pdf.multi_cell(w_effective, 5, f"{idx}. {nettoyer_texte_pdf(txt)}")
     else:
-        pdf.multi_cell(0, 5, nettoyer_texte_pdf(str(deroulement)))
+        pdf.set_x(10)
+        pdf.multi_cell(w_effective, 5, nettoyer_texte_pdf(str(deroulement)))
     pdf.ln(4)
 
-    # Vigilance
+    # 3. Vigilance
     if proc.get('points_vigilance'):
+        pdf.set_x(10)
         pdf.set_font("helvetica", "B", 10)
         pdf.set_fill_color(254, 237, 232)
         pdf.set_draw_color(220, 53, 69)
-        pdf.cell(0, 6, " 3. POINTS DE VIGILANCE & SECURITE", fill=True, border=1, ln=True)
+        pdf.cell(w_effective, 6, " 3. POINTS DE VIGILANCE & SECURITE", fill=True, border=1, ln=True)
+        
+        pdf.set_x(10)
         pdf.set_font("helvetica", "I", 9)
-        pdf.multi_cell(0, 5, nettoyer_texte_pdf(proc['points_vigilance']), border='LRB')
+        pdf.multi_cell(w_effective, 5, nettoyer_texte_pdf(proc['points_vigilance']), border='LRB')
         pdf.ln(6)
 
-    # Historique & Gouvernance
+    # 4. Historique & Gouvernance
+    pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
-    pdf.cell(0, 5, " HISTORIQUE DES MODIFICATIONS & GOUVERNANCE", ln=True)
+    pdf.set_draw_color(180, 180, 180)
+    pdf.cell(w_effective, 5, " HISTORIQUE DES MODIFICATIONS & GOUVERNANCE", ln=True)
+    
+    pdf.set_x(10)
     pdf.set_font("helvetica", "", 8)
     pdf.cell(40, 5, f" Date : {proc['date_version']}", border=1)
     pdf.cell(30, 5, f" Version : {proc['version']}", border=1)
     pdf.cell(60, 5, f" Redacteur : {nettoyer_texte_pdf(proc['redacteur'])}", border=1)
-    pdf.cell(60, 5, f" Validation : Direction des Securites", border=1, ln=True)
+    pdf.cell(60, 5, " Validation : Direction des Securites", border=1, ln=True)
 
     return bytes(pdf.output())
