@@ -26,11 +26,13 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        # Marge supérieure fixée à 35 mm pour TOUTES les pages (page 1, 2, 3...)
-        self.set_margins(10, 35, 10)
+        # Marge supérieure fixée à 50 mm
+        self.set_margins(10, 50, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
+        self.set_top_margin(50)
+
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
         dossier_assets = os.path.join(racine_projet, "assets")
@@ -74,8 +76,6 @@ def creer_pdf_sop(proc, site_nom):
     )
     pdf.add_page()
     w_effective = pdf.epw 
-
-    # La top_margin (35 mm) gère automatiquement le positionnement sur toutes les pages.
 
     # Cartouche Titre + Référence
     pdf.set_fill_color(230, 238, 248)

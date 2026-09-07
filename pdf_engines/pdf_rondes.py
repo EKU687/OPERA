@@ -23,11 +23,14 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
-        # Marge supérieure fixée strictement à 35 mm pour TOUTES les pages (page 1, 2, 3...)
-        self.set_margins(10, 35, 10)
+        # Marge supérieure à 50mm pour caler le contenu SOUS le header (Y=50)
+        self.set_margins(10, 50, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
+        # Assure le calage automatique sur les pages 2, 3...
+        self.set_top_margin(50)
+
         # 1. Chargement du logo depuis assets/
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
@@ -68,8 +71,6 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf = GenerateurProtocolePro(nom_site, mission['titre_mission'], mission['horaire_cible'])
     pdf.add_page()
     w_effective = pdf.epw
-    
-    # La top_margin (35 mm) positionne automatiquement le curseur au bon endroit sur chaque page.
 
     # Cartouche de Mission
     pdf.set_fill_color(230, 238, 248)
@@ -107,7 +108,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
             pdf.multi_cell(w_effective - 5, 5, f"[  ] {action} : {desc}")
         pdf.ln(3)
         
-    # Cartouche de Gouvernance en bas de fiche de ronde
+    # Cartouche de Gouvernance
     pdf.ln(2)
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
@@ -116,7 +117,6 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     
     date_fr = formater_date_fr(mission.get('date_creation'))
     
-    # Tronquage de sécurité si le texte d'horaire est très long
     horaire_txt = horaire_clean
     if len(horaire_txt) > 22:
         horaire_txt = horaire_txt[:19] + "..."
