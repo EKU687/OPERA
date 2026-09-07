@@ -13,8 +13,8 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        # Marge supérieure portée à 45 mm pour dégager l'en-tête
-        self.set_margins(10, 45, 10)
+        # Marge supérieure portée à 50 mm
+        self.set_margins(10, 50, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -30,9 +30,9 @@ class GenerateurSopPro(FPDF):
                     logo_path = os.path.join(dossier_assets, fichier)
                     break
 
-        # Logo affiché de Y=5 à Y=25 mm
+        # Logo positionné plus haut (Y=3) et plus compact (w=15)
         if logo_path and os.path.exists(logo_path):
-            self.image(logo_path, x=10, y=5, w=16)
+            self.image(logo_path, x=10, y=3, w=15)
 
         # 2. En-tête administratif
         self.set_font("helvetica", "B", 10)
@@ -43,10 +43,10 @@ class GenerateurSopPro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # 3. Ligne bleue séparatrice abaissée sous le logo (Y=28 mm)
+        # 3. Ligne bleue séparatrice abaissée à Y=30 mm pour passer sous le texte du logo
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 28, 200, 28)
+        self.line(10, 30, 200, 30)
 
     def footer(self):
         self.set_y(-15)
@@ -67,8 +67,8 @@ def creer_pdf_sop(proc, site_nom):
     
     w_effective = pdf.epw 
 
-    # Démarrage du cartouche bleu sous la ligne séparatrice (Y=32 mm)
-    pdf.set_y(32)
+    # Démarrage du cartouche bleu sous la ligne séparatrice (Y=35 mm)
+    pdf.set_y(35)
 
     # Cartouche Titre + Référence
     pdf.set_fill_color(230, 238, 248)
