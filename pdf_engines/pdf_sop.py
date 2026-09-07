@@ -15,12 +15,21 @@ class GenerateurSopPro(FPDF):
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        # Résolution robuste du chemin relatif vers assets/logo_gouv.jpg depuis la racine du projet
+        # 1. Résolution dynamique du dossier assets
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
-        logo_path = os.path.join(racine_projet, "assets", "logo_gouv.jpg")
+        dossier_assets = os.path.join(racine_projet, "assets")
 
-        if os.path.exists(logo_path):
+        # 2. Recherche automatique du fichier logo (insensible à la casse et au format)
+        logo_path = None
+        if os.path.exists(dossier_assets):
+            for fichier in os.listdir(dossier_assets):
+                if fichier.lower().startswith("logo_gouv"):
+                    logo_path = os.path.join(dossier_assets, fichier)
+                    break
+
+        # 3. Insertion du logo
+        if logo_path and os.path.exists(logo_path):
             self.image(logo_path, x=10, y=8, w=25)
 
         # En-tête administratif épuré
@@ -38,7 +47,7 @@ class GenerateurSopPro(FPDF):
         self.line(10, 22, 200, 22)
         self.ln(4)
 
-        # Cartouche Titre + Référence (Ajustement de longueur pour éviter tout chevauchement)
+        # Cartouche Titre + Référence
         self.set_fill_color(230, 238, 248)
         self.set_font("helvetica", "B", 10)
         self.set_text_color(0, 51, 102)

@@ -3,6 +3,17 @@ import datetime
 from pdf_engines.pdf_sop import creer_pdf_sop
 
 def afficher_vue_sop(supabase, user_info, est_manager):
+    # 🔍 BLOC DE DÉBOGAGE LOGO (À retirer une fois validé)
+    dossier_actuel = os.path.dirname(os.path.abspath(__file__))
+    racine = os.path.dirname(dossier_actuel)
+    dossier_assets = os.path.join(racine, "assets")
+    
+    if os.path.exists(dossier_assets):
+        fichiers_assets = os.listdir(dossier_assets)
+        st.info(f"📁 Fichiers trouvés dans assets/ : {fichiers_assets}")
+    else:
+        st.error("❌ Le dossier 'assets/' est introuvable sur le serveur Streamlit Cloud.")
+    
     st.subheader("📜 Module Procédures Opérationnelles Normalisées (SOP)")
     
     if est_manager:
