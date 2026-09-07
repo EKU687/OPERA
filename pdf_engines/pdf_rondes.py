@@ -137,6 +137,6 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.cell(35, 5, f" Date : {date_fr}", border=1)
     pdf.cell(25, 5, f" Version : {version_doc}", border=1)
     pdf.cell(65, 5, f" Editeur : Eric Kuter", border=1)
-    pdf.cell(65, 5, " Validation : PC Surete GNC", border=1, ln=True)
+    pdf.cell(65, 5, " Validation : Chargé de sûreté", border=1, ln=True)
 
     return bytes(pdf.output())
