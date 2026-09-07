@@ -23,9 +23,14 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
-        # Marge supérieure portée à 48mm : c'est elle qui régit le HAUT DE LA PAGE 2, 3, etc.
-        self.set_margins(10, 48, 10)
+        # Marge supérieure stricte réservant l'espace du header
+        self.set_margins(10, 38, 10)
         self.set_auto_page_break(auto=True, margin=15)
+
+    def add_page(self, orientation="", format="", same=False):
+        super().add_page(orientation=orientation, format=format, same=same)
+        # Forçage systématique du curseur Y sous la ligne bleue (Y=25) pour chaque nouvelle page
+        self.set_y(38)
 
     def header(self):
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
@@ -39,11 +44,9 @@ class GenerateurProtocolePro(FPDF):
                     logo_path = os.path.join(dossier_assets, fichier)
                     break
 
-        # Logo calé de Y=3 à Y=23
         if logo_path and os.path.exists(logo_path):
             self.image(logo_path, x=10, y=3, w=15)
 
-        # Textes d'en-tête institutionnels
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
         self.set_xy(10, 6)
@@ -52,10 +55,10 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne bleue fermement arrêtée à Y=28
+        # Ligne bleue fermement positionnée à Y=25 mm
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 28, 200, 28)
+        self.line(10, 25, 200, 25)
 
     def footer(self):
         self.set_y(-15)
@@ -69,10 +72,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
 
-    # Sur la PAGE 1 SEULEMENT : on cale le cartouche bleu juste sous la ligne (Y=32)
-    pdf.set_y(32)
-
-    # Cartouche de Mission
+    # Cartouche de Mission (Page 1)
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
@@ -89,9 +89,11 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     for secteur in secteurs:
         consignes = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
         
-        # Sécurité anti-tronçonnage : si le secteur ne rentre pas en bas de page, on force la page suivante
-        hauteur_estimee = 10 + (len(consignes) * 6)
-        if pdf.get_y() + hauteur_estimee > 270:
+        # Hauteur estimée du secteur et de ses consignes
+        hauteur_bloc = 8 + (len(consignes) * 6)
+        
+        # Saut de page préventif si le bloc ne rentre pas entier sur la page
+        if pdf.get_y() + hauteur_bloc > 270:
             pdf.add_page()
 
         pdf.set_x(10)
@@ -113,7 +115,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
             pdf.multi_cell(w_effective - 5, 5, f"[  ] {action} : {desc}")
         pdf.ln(3)
         
-    # Gouvernance en bas
+    # Bloc de Gouvernance
     if pdf.get_y() + 20 > 270:
         pdf.add_page()
 
