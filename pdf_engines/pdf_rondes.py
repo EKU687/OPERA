@@ -23,14 +23,12 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
-        # Marge supérieure stricte réservant l'espace du header
-        self.set_margins(10, 38, 10)
+        self.set_margins(10, 41, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def add_page(self, orientation="", format="", same=False):
         super().add_page(orientation=orientation, format=format, same=same)
-        # Forçage systématique du curseur Y sous la ligne bleue (Y=25) pour chaque nouvelle page
-        self.set_y(38)
+        self.set_y(41)
 
     def header(self):
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
@@ -55,10 +53,10 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne bleue fermement positionnée à Y=25 mm
+        # Ligne bleue descendue à Y=28 mm pour laisser respirer "CALÉDONIE"
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 25, 200, 25)
+        self.line(10, 28, 200, 28)
 
     def footer(self):
         self.set_y(-15)
@@ -72,7 +70,8 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
 
-    # Cartouche de Mission (Page 1)
+    # Cartouche de Mission (Page 1) à Y=32
+    pdf.set_y(32)
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
@@ -85,14 +84,10 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.cell(60, 8, f" SITE : {site_clean} ({horaire_clean}) ", fill=True, ln=True, align="R")
     pdf.ln(4)
     
-    # Parcours des secteurs
     for secteur in secteurs:
         consignes = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
-        
-        # Hauteur estimée du secteur et de ses consignes
         hauteur_bloc = 8 + (len(consignes) * 6)
         
-        # Saut de page préventif si le bloc ne rentre pas entier sur la page
         if pdf.get_y() + hauteur_bloc > 270:
             pdf.add_page()
 
@@ -115,7 +110,6 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
             pdf.multi_cell(w_effective - 5, 5, f"[  ] {action} : {desc}")
         pdf.ln(3)
         
-    # Bloc de Gouvernance
     if pdf.get_y() + 20 > 270:
         pdf.add_page()
 

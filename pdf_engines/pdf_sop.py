@@ -26,12 +26,12 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        self.set_margins(10, 38, 10)
+        self.set_margins(10, 41, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def add_page(self, orientation="", format="", same=False):
         super().add_page(orientation=orientation, format=format, same=same)
-        self.set_y(38)
+        self.set_y(41)
 
     def header(self):
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
@@ -58,7 +58,7 @@ class GenerateurSopPro(FPDF):
 
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 25, 200, 25)
+        self.line(10, 28, 200, 28)
 
     def footer(self):
         self.set_y(-15)
@@ -77,6 +77,8 @@ def creer_pdf_sop(proc, site_nom):
     )
     pdf.add_page()
     w_effective = pdf.epw 
+
+    pdf.set_y(32)
 
     # Cartouche Titre + Référence
     pdf.set_fill_color(230, 238, 248)
