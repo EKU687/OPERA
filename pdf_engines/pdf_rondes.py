@@ -3,16 +3,32 @@ import datetime
 from fpdf import FPDF
 from utils.pdf_utils import nettoyer_texte_pdf
 
+def formater_date_fr(date_val):
+    if not date_val:
+        return datetime.datetime.now().strftime("%d/%m/%Y")
+    if isinstance(date_val, str):
+        try:
+            dt = datetime.datetime.strptime(date_val.split("T")[0], "%Y-%m-%d")
+            return dt.strftime("%d/%m/%Y")
+        except ValueError:
+            return date_val
+    elif isinstance(date_val, (datetime.date, datetime.datetime)):
+        return date_val.strftime("%d/%m/%Y")
+    return str(date_val)
+
 class GenerateurProtocolePro(FPDF):
     def __init__(self, site_nom, mission_titre, horaire):
         super().__init__()
         self.site_nom = site_nom
         self.mission_titre = mission_titre
         self.horaire = horaire
+        
+        # Alignement strict sur la marge SOP (50 mm)
         self.set_margins(10, 50, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
+        # 1. Chargement du logo depuis assets/
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
         dossier_assets = os.path.join(racine_projet, "assets")
@@ -27,6 +43,7 @@ class GenerateurProtocolePro(FPDF):
         if logo_path and os.path.exists(logo_path):
             self.image(logo_path, x=10, y=3, w=15)
 
+        # 2. En-tête administratif
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
         self.set_xy(10, 6)
@@ -35,6 +52,7 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
+        # 3. Ligne de séparation bleue (Y=30 mm)
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 30, 200, 30)
@@ -51,47 +69,59 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
     
+    # Positionnement sous le header
     pdf.set_y(35)
 
-    # Cartouche d'Identification Métier
-    pdf.set_fill_color(240, 243, 246)
+    # Cartouche de Mission (Identique au style SOP)
+    pdf.set_fill_color(230, 238, 248)
+    pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
     
-    # Ligne 1 : Nature du Document & Site
-    pdf.set_font("helvetica", "B", 8)
-    pdf.cell(130, 5, " NATURE : PROTOCOLE DE RONDE TERRAIN", fill=True, ln=False)
-    pdf.cell(60, 5, f" SITE : {nettoyer_texte_pdf(nom_site).upper()} ", fill=True, ln=True, align="R")
-
-    # Ligne 2 : Mission & Horaire Cible
-    pdf.set_font("helvetica", "B", 10)
-    pdf.set_text_color(0, 0, 0)
     titre_clean = nettoyer_texte_pdf(mission['titre_mission']).upper()
+    site_clean = nettoyer_texte_pdf(nom_site).upper()
     horaire_clean = nettoyer_texte_pdf(str(mission['horaire_cible']))
     
-    pdf.cell(0, 7, f" MISSION : {titre_clean} (HORAIRE CIBLE : {horaire_clean})", fill=True, ln=True)
+    pdf.cell(130, 8, f" PROTOCOLE DE RONDE : {titre_clean}", fill=True, ln=False)
+    pdf.cell(60, 8, f" SITE : {site_clean} ({horaire_clean}) ", fill=True, ln=True, align="R")
     pdf.ln(5)
-
-    # ... Suite du code inchangée (Secteurs et Consignes)
     
+    # Parcours par Secteur & Consignes Checkbox
     for secteur in secteurs:
         pdf.set_x(10)
         pdf.set_font("helvetica", "B", 10)
-        pdf.set_fill_color(215, 228, 242)
+        pdf.set_fill_color(240, 240, 240)
+        pdf.set_text_color(0, 0, 0)
         
         nom_sec_clean = nettoyer_texte_pdf(secteur['nom_secteur']).upper()
-        pdf.cell(w_effective, 7, f" SECTEUR : {nom_sec_clean}", fill=True, ln=True)
+        pdf.cell(w_effective, 6, f" SECTEUR : {nom_sec_clean}", fill=True, ln=True)
         pdf.ln(2)
         
         consignes = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
-        pdf.set_font("helvetica", "", 10)
+        pdf.set_font("helvetica", "", 9)
         
         for consigne in consignes:
             action = nettoyer_texte_pdf(consigne['type_action']).upper()
             desc = nettoyer_texte_pdf(consigne['description'])
             
             pdf.set_x(10)
-            pdf.cell(5, 6, "") 
-            pdf.multi_cell(w_effective - 5, 6, f"[  ] {action} : {desc}")
-        pdf.ln(4)
+            pdf.cell(5, 5, "") 
+            pdf.multi_cell(w_effective - 5, 5, f"[  ] {action} : {desc}")
+        pdf.ln(3)
         
+    # Cartouche de Gouvernance en bas de fiche de ronde
+    pdf.ln(2)
+    pdf.set_x(10)
+    pdf.set_font("helvetica", "B", 9)
+    pdf.set_draw_color(180, 180, 180)
+    pdf.cell(w_effective, 5, " HISTORIQUE DES MODIFICATIONS & GOUVERNANCE", ln=True)
+    
+    date_fr = formater_date_fr(mission.get('date_creation'))
+    
+    pdf.set_x(10)
+    pdf.set_font("helvetica", "", 8)
+    pdf.cell(40, 5, f" Date : {date_fr}", border=1)
+    pdf.cell(30, 5, f" Horaire : {horaire_clean}", border=1)
+    pdf.cell(60, 5, f" Editeur : Direction des Securites", border=1)
+    pdf.cell(60, 5, " Validation : PC Surete GNC", border=1, ln=True)
+
     return bytes(pdf.output())
