@@ -13,8 +13,8 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        # Marge supérieure de 32 mm réservée exclusivement au header
-        self.set_margins(10, 32, 10)
+        # Marge supérieure stricte à 38mm pour empêcher FPDF de re-déclencher le header
+        self.set_margins(10, 38, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -31,21 +31,21 @@ class GenerateurSopPro(FPDF):
                     break
 
         if logo_path and os.path.exists(logo_path):
-            self.image(logo_path, x=10, y=6, w=18)
+            self.image(logo_path, x=10, y=5, w=16)
 
-        # 2. Texte institutionnel aligné à droite
+        # 2. En-tête administratif calé à droite
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
-        self.set_xy(10, 8)
+        self.set_xy(10, 6)
         self.cell(0, 4, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
         self.set_font("helvetica", "", 8)
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # 3. Ligne de séparation sous l'en-tête
+        # 3. Ligne bleue séparatrice à Y=20
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 24, 200, 24)
+        self.line(10, 20, 200, 20)
 
     def footer(self):
         self.set_y(-15)
@@ -66,7 +66,10 @@ def creer_pdf_sop(proc, site_nom):
     
     w_effective = pdf.epw 
 
-    # Cartouche Titre + Référence (Imprimé une seule fois sous la marge du header)
+    # Positionnement explicite au démarrage du corps de document
+    pdf.set_y(25)
+
+    # Cartouche Titre + Référence
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
@@ -77,7 +80,7 @@ def creer_pdf_sop(proc, site_nom):
 
     pdf.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
     pdf.cell(60, 8, f" REF : {proc['code_doc']} ", fill=True, ln=True, align="R")
-    pdf.ln(4)
+    pdf.ln(5)
 
     # 1. Cadre & Domaine
     pdf.set_x(10)
