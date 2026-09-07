@@ -117,11 +117,16 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     
     date_fr = formater_date_fr(mission.get('date_creation'))
     
+    # Tronquage de sécurité si le texte d'horaire est très long
+    horaire_txt = horaire_clean
+    if len(horaire_txt) > 22:
+        horaire_txt = horaire_txt[:19] + "..."
+
     pdf.set_x(10)
     pdf.set_font("helvetica", "", 8)
-    pdf.cell(40, 5, f" Date : {date_fr}", border=1)
-    pdf.cell(30, 5, f" Horaire : {horaire_clean}", border=1)
-    pdf.cell(60, 5, f" Editeur : Direction des Securites", border=1)
-    pdf.cell(60, 5, " Validation : PC Surete GNC", border=1, ln=True)
+    pdf.cell(35, 5, f" Date : {date_fr}", border=1)
+    pdf.cell(45, 5, f" Horaire : {horaire_txt}", border=1)
+    pdf.cell(55, 5, f" Editeur : Eric Kuter", border=1)
+    pdf.cell(55, 5, " Validation : PC Surete GNC", border=1, ln=True)
 
     return bytes(pdf.output())
