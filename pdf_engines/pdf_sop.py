@@ -12,15 +12,17 @@ class GenerateurSopPro(FPDF):
         self.version = version
         self.date_ver = date_ver
         self.redacteur = redacteur
+        
+        # Marge supérieure de 32 mm réservée exclusivement au header
+        self.set_margins(10, 32, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        # 1. Résolution dynamique du dossier assets
+        # 1. Chargement du logo
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
         dossier_assets = os.path.join(racine_projet, "assets")
 
-        # 2. Recherche automatique du logo
         logo_path = None
         if os.path.exists(dossier_assets):
             for fichier in os.listdir(dossier_assets):
@@ -28,38 +30,22 @@ class GenerateurSopPro(FPDF):
                     logo_path = os.path.join(dossier_assets, fichier)
                     break
 
-        # 3. Insertion du logo avec dimension maîtrisée (hauteur maîtrisée)
         if logo_path and os.path.exists(logo_path):
-            self.image(logo_path, x=10, y=5, w=18)
+            self.image(logo_path, x=10, y=6, w=18)
 
-        # En-tête administratif à droite
+        # 2. Texte institutionnel aligné à droite
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
+        self.set_xy(10, 8)
         self.cell(0, 4, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
         self.set_font("helvetica", "", 8)
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne de séparation sous le logo et les textes (Y=24)
+        # 3. Ligne de séparation sous l'en-tête
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 24, 200, 24)
-
-        # ⚠️ REPOSITIONNEMENT IMPÉRATIF DU CURSEUR SOUS LE HEADER
-        self.set_y(27)
-
-        # Cartouche Titre + Référence
-        self.set_fill_color(230, 238, 248)
-        self.set_font("helvetica", "B", 10)
-        self.set_text_color(0, 51, 102)
-        
-        titre_clean = nettoyer_texte_pdf(self.titre).upper()
-        if len(titre_clean) > 42:
-            titre_clean = titre_clean[:39] + "..."
-
-        self.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
-        self.cell(60, 8, f" REF : {self.code_doc} ", fill=True, ln=True, align="R")
-        self.ln(4)
 
     def footer(self):
         self.set_y(-15)
@@ -78,13 +64,26 @@ def creer_pdf_sop(proc, site_nom):
     )
     pdf.add_page()
     
-    # Largeur utile de la page (210mm - 20mm de marges = 190mm)
     w_effective = pdf.epw 
+
+    # Cartouche Titre + Référence (Imprimé une seule fois sous la marge du header)
+    pdf.set_fill_color(230, 238, 248)
+    pdf.set_font("helvetica", "B", 10)
+    pdf.set_text_color(0, 51, 102)
+    
+    titre_clean = nettoyer_texte_pdf(proc['titre']).upper()
+    if len(titre_clean) > 42:
+        titre_clean = titre_clean[:39] + "..."
+
+    pdf.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
+    pdf.cell(60, 8, f" REF : {proc['code_doc']} ", fill=True, ln=True, align="R")
+    pdf.ln(4)
 
     # 1. Cadre & Domaine
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_fill_color(240, 240, 240)
+    pdf.set_text_color(0, 0, 0)
     pdf.cell(w_effective, 6, " 1. CADRE & DOMAINE D'APPLICATION", fill=True, ln=True)
     pdf.ln(2)
     
