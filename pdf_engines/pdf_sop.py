@@ -26,7 +26,6 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        # Marge supérieure portée à 42 mm pour sécuriser le haut des pages 2, 3...
         self.set_margins(10, 42, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
@@ -53,7 +52,6 @@ class GenerateurSopPro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne bleue remontée à Y=25 mm
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 25, 200, 25)
@@ -76,7 +74,6 @@ def creer_pdf_sop(proc, site_nom):
     pdf.add_page()
     w_effective = pdf.epw 
 
-    # Démarrage du cartouche bleu sur la Page 1 (Y=28)
     pdf.set_y(28)
 
     # Cartouche Titre + Référence
@@ -127,6 +124,9 @@ def creer_pdf_sop(proc, site_nom):
 
     # 3. Vigilance
     if proc.get('points_vigilance'):
+        if pdf.get_y() + 20 > 270:
+            pdf.add_page()
+            
         pdf.set_x(10)
         pdf.set_font("helvetica", "B", 10)
         pdf.set_fill_color(254, 237, 232)
@@ -139,6 +139,9 @@ def creer_pdf_sop(proc, site_nom):
         pdf.ln(6)
 
     # 4. Historique & Gouvernance
+    if pdf.get_y() + 20 > 270:
+        pdf.add_page()
+
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
     pdf.set_draw_color(180, 180, 180)

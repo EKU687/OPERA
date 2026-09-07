@@ -23,7 +23,7 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
-        # Marge supérieure portée à 42 mm pour espacer les pages 2, 3...
+        # Marge supérieure portée à 42 mm pour TOUTES les pages secondaires
         self.set_margins(10, 42, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
@@ -50,7 +50,7 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne bleue remontée à Y=25 mm
+        # Ligne bleue séparatrice à Y=25 mm
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 25, 200, 25)
@@ -67,10 +67,8 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
 
-    # Démarrage du cartouche bleu sur la Page 1 (Y=28)
+    # Cartouche de Mission sur Page 1
     pdf.set_y(28)
-
-    # Cartouche de Mission
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
@@ -85,6 +83,15 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     
     # Parcours par Secteur
     for secteur in secteurs:
+        consignes = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
+        
+        # Calcul de la hauteur nécessaire pour le bloc Secteur + ses consignes
+        hauteur_bloc = 8 + (len(consignes) * 6)
+        
+        # Si le bloc ne rentre pas dans la page courante (marge basse 15mm sur 297mm = Y=282mm)
+        if pdf.get_y() + hauteur_bloc > 270:
+            pdf.add_page()
+
         pdf.set_x(10)
         pdf.set_font("helvetica", "B", 10)
         pdf.set_fill_color(240, 240, 240)
@@ -94,9 +101,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
         pdf.cell(w_effective, 6, f" SECTEUR : {nom_sec_clean}", fill=True, ln=True)
         pdf.ln(2)
         
-        consignes = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
         pdf.set_font("helvetica", "", 9)
-        
         for consigne in consignes:
             action = nettoyer_texte_pdf(consigne['type_action']).upper()
             desc = nettoyer_texte_pdf(consigne['description'])
@@ -106,7 +111,10 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
             pdf.multi_cell(w_effective - 5, 5, f"[  ] {action} : {desc}")
         pdf.ln(3)
         
-    # Gouvernance en fin de document
+    # Vérification de place pour le cartouche de Gouvernance
+    if pdf.get_y() + 25 > 270:
+        pdf.add_page()
+
     pdf.ln(2)
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
@@ -114,7 +122,6 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.cell(w_effective, 5, " HISTORIQUE DES MODIFICATIONS & GOUVERNANCE", ln=True)
     
     date_fr = formater_date_fr(mission.get('date_creation'))
-    
     horaire_txt = horaire_clean
     if len(horaire_txt) > 22:
         horaire_txt = horaire_txt[:19] + "..."
