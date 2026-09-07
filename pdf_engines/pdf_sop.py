@@ -20,7 +20,7 @@ class GenerateurSopPro(FPDF):
         racine_projet = os.path.dirname(dossier_pdf_engines)
         dossier_assets = os.path.join(racine_projet, "assets")
 
-        # 2. Recherche automatique du fichier logo (insensible à la casse et au format)
+        # 2. Recherche automatique du logo
         logo_path = None
         if os.path.exists(dossier_assets):
             for fichier in os.listdir(dossier_assets):
@@ -28,24 +28,25 @@ class GenerateurSopPro(FPDF):
                     logo_path = os.path.join(dossier_assets, fichier)
                     break
 
-        # 3. Insertion du logo
+        # 3. Insertion du logo avec dimension maîtrisée (hauteur maîtrisée)
         if logo_path and os.path.exists(logo_path):
-            self.image(logo_path, x=10, y=8, w=25)
+            self.image(logo_path, x=10, y=5, w=18)
 
-        # En-tête administratif épuré
+        # En-tête administratif à droite
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
         self.cell(0, 4, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
         self.set_font("helvetica", "", 8)
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
-        self.ln(4)
 
-        # Ligne de séparation aux couleurs officielles
+        # Ligne de séparation sous le logo et les textes (Y=24)
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 22, 200, 22)
-        self.ln(4)
+        self.line(10, 24, 200, 24)
+
+        # ⚠️ REPOSITIONNEMENT IMPÉRATIF DU CURSEUR SOUS LE HEADER
+        self.set_y(27)
 
         # Cartouche Titre + Référence
         self.set_fill_color(230, 238, 248)
@@ -58,7 +59,7 @@ class GenerateurSopPro(FPDF):
 
         self.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
         self.cell(60, 8, f" REF : {self.code_doc} ", fill=True, ln=True, align="R")
-        self.ln(3)
+        self.ln(4)
 
     def footer(self):
         self.set_y(-15)

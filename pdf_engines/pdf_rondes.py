@@ -12,30 +12,34 @@ class GenerateurProtocolePro(FPDF):
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        # Localisation absolue à la racine du projet vers assets/logo_gouv.jpg
         dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
         racine_projet = os.path.dirname(dossier_pdf_engines)
-        logo_path = os.path.join(racine_projet, "assets", "logo_gouv.jpg")
+        dossier_assets = os.path.join(racine_projet, "assets")
 
-        if os.path.exists(logo_path):
-            self.image(logo_path, x=10, y=8, w=28)
+        logo_path = None
+        if os.path.exists(dossier_assets):
+            for fichier in os.listdir(dossier_assets):
+                if fichier.lower().startswith("logo_gouv"):
+                    logo_path = os.path.join(dossier_assets, fichier)
+                    break
 
-        # En-tête administratif harmonisé
+        if logo_path and os.path.exists(logo_path):
+            self.image(logo_path, x=10, y=5, w=18)
+
         self.set_font("helvetica", "B", 11)
         self.set_text_color(20, 35, 60)
         self.cell(0, 5, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
         self.set_font("helvetica", "", 9)
         self.set_text_color(100, 100, 100)
         self.cell(0, 5, "PROJET OPERA", ln=True, align="R")
-        self.ln(6)
 
-        # Ligne de séparation aux couleurs officielles
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.8)
-        self.line(10, 25, 200, 25)
-        self.ln(6)
+        self.line(10, 24, 200, 24)
 
-        # Cartouche de la mission
+        # Repositionnement vertical
+        self.set_y(27)
+
         titre_clean = nettoyer_texte_pdf(self.mission_titre).upper()
         site_clean = nettoyer_texte_pdf(self.site_nom).upper()
         horaire_clean = nettoyer_texte_pdf(str(self.horaire))
