@@ -31,7 +31,7 @@ try:
     col_titre, col_user = st.columns([4, 1])
     with col_titre:
         st.title("🛡️ Projet OPERA")
-        st.caption("Référentiel des Protocoles de Sûreté & Fiches d'Intervention")
+        st.caption("Outil de Protocoles et d'Evaluation des Rondes et Activités")
     with col_user:
         st.write(f"👤 **{user_info.get('nom', 'Agent')}**")
         st.caption(f"Rôle : {user_info.get('role', 'Agent')}")
