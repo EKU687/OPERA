@@ -64,24 +64,31 @@ def creer_pdf_sop(proc, site_nom):
         nettoyer_texte_pdf(proc['redacteur'])
     )
     pdf.add_page()
-    
     w_effective = pdf.epw 
 
-    # Démarrage du cartouche bleu sous la ligne séparatrice (Y=35 mm)
+    # Positionnement sous la ligne du header
     pdf.set_y(35)
 
-    # Cartouche Titre + Référence
+    # Cartouche d'Identification Métier
     pdf.set_fill_color(230, 238, 248)
-    pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
     
+    # Ligne 1 : Nature du Document & Site Cible
+    pdf.set_font("helvetica", "B", 8)
+    pdf.cell(130, 5, f" NATURE : PROCEDURE PERMANENTE (SOP)", fill=True, ln=False)
+    pdf.cell(60, 5, f" SITE : {nettoyer_texte_pdf(site_nom).upper()} ", fill=True, ln=True, align="R")
+    
+    # Ligne 2 : Titre de la procédure & Référence
+    pdf.set_font("helvetica", "B", 10)
     titre_clean = nettoyer_texte_pdf(proc['titre']).upper()
     if len(titre_clean) > 42:
         titre_clean = titre_clean[:39] + "..."
 
-    pdf.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
-    pdf.cell(60, 8, f" REF : {proc['code_doc']} ", fill=True, ln=True, align="R")
+    pdf.cell(130, 7, f" INTITULE : {titre_clean}", fill=True, ln=False)
+    pdf.cell(60, 7, f" REF : {proc['code_doc']} ", fill=True, ln=True, align="R")
     pdf.ln(5)
+
+    # ... Suite du code inchangée (Cadre, Déroulement, Vigilance, Gouvernance)
 
     # 1. Cadre & Domaine
     pdf.set_x(10)

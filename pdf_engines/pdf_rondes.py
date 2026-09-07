@@ -53,15 +53,25 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     
     pdf.set_y(35)
 
-    titre_clean = nettoyer_texte_pdf(mission['titre_mission']).upper()
-    site_clean = nettoyer_texte_pdf(nom_site).upper()
-    horaire_clean = nettoyer_texte_pdf(str(mission['horaire_cible']))
-    
+    # Cartouche d'Identification Métier
     pdf.set_fill_color(240, 243, 246)
+    pdf.set_text_color(0, 51, 102)
+    
+    # Ligne 1 : Nature du Document & Site
+    pdf.set_font("helvetica", "B", 8)
+    pdf.cell(130, 5, " NATURE : PROTOCOLE DE RONDE TERRAIN", fill=True, ln=False)
+    pdf.cell(60, 5, f" SITE : {nettoyer_texte_pdf(nom_site).upper()} ", fill=True, ln=True, align="R")
+
+    # Ligne 2 : Mission & Horaire Cible
     pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 0, 0)
-    pdf.cell(0, 8, f" PROTOCOLE : {site_clean} - {titre_clean} ({horaire_clean})", fill=True, ln=True)
+    titre_clean = nettoyer_texte_pdf(mission['titre_mission']).upper()
+    horaire_clean = nettoyer_texte_pdf(str(mission['horaire_cible']))
+    
+    pdf.cell(0, 7, f" MISSION : {titre_clean} (HORAIRE CIBLE : {horaire_clean})", fill=True, ln=True)
     pdf.ln(5)
+
+    # ... Suite du code inchangée (Secteurs et Consignes)
     
     for secteur in secteurs:
         pdf.set_x(10)
