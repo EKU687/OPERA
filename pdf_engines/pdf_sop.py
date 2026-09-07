@@ -1,6 +1,6 @@
-from fpdf import FPDF
-import datetime
 import os
+import datetime
+from fpdf import FPDF
 from utils.pdf_utils import nettoyer_texte_pdf
 
 class GenerateurSopPro(FPDF):
@@ -15,26 +15,39 @@ class GenerateurSopPro(FPDF):
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        if os.path.exists("logo_gouv.png"):
-            self.image("logo_gouv.png", x=10, y=8, w=25)
+        # Résolution robuste du chemin relatif vers assets/logo_gouv.jpg depuis la racine du projet
+        dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
+        racine_projet = os.path.dirname(dossier_pdf_engines)
+        logo_path = os.path.join(racine_projet, "assets", "logo_gouv.jpg")
 
+        if os.path.exists(logo_path):
+            self.image(logo_path, x=10, y=8, w=25)
+
+        # En-tête administratif épuré
         self.set_font("helvetica", "B", 10)
         self.set_text_color(20, 35, 60)
         self.cell(0, 4, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
         self.set_font("helvetica", "", 8)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 4, "DIRECTION DES SECURITES - PROJET OPERA", ln=True, align="R")
+        self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
         self.ln(4)
 
+        # Ligne de séparation aux couleurs officielles
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 22, 200, 22)
         self.ln(4)
 
+        # Cartouche Titre + Référence (Ajustement de longueur pour éviter tout chevauchement)
         self.set_fill_color(230, 238, 248)
-        self.set_font("helvetica", "B", 11)
+        self.set_font("helvetica", "B", 10)
         self.set_text_color(0, 51, 102)
-        self.cell(130, 8, f" PROCEDURE : {nettoyer_texte_pdf(self.titre).upper()}", fill=True, ln=False)
+        
+        titre_clean = nettoyer_texte_pdf(self.titre).upper()
+        if len(titre_clean) > 42:
+            titre_clean = titre_clean[:39] + "..."
+
+        self.cell(130, 8, f" PROCEDURE : {titre_clean}", fill=True, ln=False)
         self.cell(60, 8, f" REF : {self.code_doc} ", fill=True, ln=True, align="R")
         self.ln(3)
 

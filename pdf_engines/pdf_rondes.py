@@ -1,6 +1,6 @@
-from fpdf import FPDF
-import datetime
 import os
+import datetime
+from fpdf import FPDF
 from utils.pdf_utils import nettoyer_texte_pdf
 
 class GenerateurProtocolePro(FPDF):
@@ -12,22 +12,30 @@ class GenerateurProtocolePro(FPDF):
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
-        if os.path.exists("logo_gouv.png"):
-            self.image("logo_gouv.png", x=10, y=8, w=28)
+        # Localisation absolue à la racine du projet vers assets/logo_gouv.jpg
+        dossier_pdf_engines = os.path.dirname(os.path.abspath(__file__))
+        racine_projet = os.path.dirname(dossier_pdf_engines)
+        logo_path = os.path.join(racine_projet, "assets", "logo_gouv.jpg")
 
+        if os.path.exists(logo_path):
+            self.image(logo_path, x=10, y=8, w=28)
+
+        # En-tête administratif harmonisé
         self.set_font("helvetica", "B", 11)
         self.set_text_color(20, 35, 60)
         self.cell(0, 5, "GOUVERNEMENT DE LA NOUVELLE-CALEDONIE", ln=True, align="R")
         self.set_font("helvetica", "", 9)
         self.set_text_color(100, 100, 100)
-        self.cell(0, 5, "DIRECTION DES SECURITES - PROJET OPERA", ln=True, align="R")
+        self.cell(0, 5, "PROJET OPERA", ln=True, align="R")
         self.ln(6)
 
+        # Ligne de séparation aux couleurs officielles
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.8)
         self.line(10, 25, 200, 25)
         self.ln(6)
 
+        # Cartouche de la mission
         titre_clean = nettoyer_texte_pdf(self.mission_titre).upper()
         site_clean = nettoyer_texte_pdf(self.site_nom).upper()
         horaire_clean = nettoyer_texte_pdf(str(self.horaire))
@@ -48,13 +56,15 @@ class GenerateurProtocolePro(FPDF):
 def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf = GenerateurProtocolePro(nom_site, mission['titre_mission'], mission['horaire_cible'])
     pdf.add_page()
+    w_effective = pdf.epw
     
     for secteur in secteurs:
+        pdf.set_x(10)
         pdf.set_font("helvetica", "B", 10)
         pdf.set_fill_color(215, 228, 242)
         
         nom_sec_clean = nettoyer_texte_pdf(secteur['nom_secteur']).upper()
-        pdf.cell(0, 7, f" SECTEUR : {nom_sec_clean}", fill=True, ln=True)
+        pdf.cell(w_effective, 7, f" SECTEUR : {nom_sec_clean}", fill=True, ln=True)
         pdf.ln(2)
         
         consignes = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
@@ -64,8 +74,9 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
             action = nettoyer_texte_pdf(consigne['type_action']).upper()
             desc = nettoyer_texte_pdf(consigne['description'])
             
+            pdf.set_x(10)
             pdf.cell(5, 6, "") 
-            pdf.cell(0, 6, f"[  ] {action} : {desc}", ln=True)
+            pdf.multi_cell(w_effective - 5, 6, f"[  ] {action} : {desc}")
         pdf.ln(4)
         
     return bytes(pdf.output())
