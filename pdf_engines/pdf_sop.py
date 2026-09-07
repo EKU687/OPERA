@@ -1,5 +1,6 @@
 import os
 import datetime
+from zoneinfo import ZoneInfo
 from fpdf import FPDF
 from utils.pdf_utils import nettoyer_texte_pdf
 
@@ -64,7 +65,11 @@ class GenerateurSopPro(FPDF):
         self.set_y(-15)
         self.set_font("helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 10, f"{self.code_doc} - {self.version} - Page {self.page_no()}/{{nb}}", align="C")
+        
+        maintenant_nc = datetime.datetime.now(ZoneInfo("Pacific/Noumea"))
+        date_edition = maintenant_nc.strftime("%d/%m/%Y a %H:%M")
+        
+        self.cell(0, 10, f"{self.code_doc} - {self.version} - Genere le {date_edition} - Page {self.page_no()}/{{nb}}", align="C")
 
 def creer_pdf_sop(proc, site_nom):
     pdf = GenerateurSopPro(

@@ -1,11 +1,12 @@
 import os
 import datetime
+from zoneinfo import ZoneInfo
 from fpdf import FPDF
 from utils.pdf_utils import nettoyer_texte_pdf
 
 def formater_date_fr(date_val):
     if not date_val:
-        return datetime.datetime.now().strftime("%d/%m/%Y")
+        return datetime.datetime.now(ZoneInfo("Pacific/Noumea")).strftime("%d/%m/%Y")
     if isinstance(date_val, str):
         try:
             dt = datetime.datetime.strptime(date_val.split("T")[0], "%Y-%m-%d")
@@ -23,11 +24,13 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
+        # Marge supérieure fixée à 41 mm pour réserver l'espace du header
         self.set_margins(10, 41, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def add_page(self, orientation="", format="", same=False):
         super().add_page(orientation=orientation, format=format, same=same)
+        # Positionne le curseur Y sous la ligne bleue (Y=28) sur CHAQUE nouvelle page
         self.set_y(41)
 
     def header(self):
@@ -53,7 +56,7 @@ class GenerateurProtocolePro(FPDF):
         self.set_text_color(100, 100, 100)
         self.cell(0, 4, "PROJET OPERA", ln=True, align="R")
 
-        # Ligne bleue descendue à Y=28 mm pour laisser respirer "CALÉDONIE"
+        # Ligne bleue de séparation à Y=28 mm
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
         self.line(10, 28, 200, 28)
@@ -62,7 +65,11 @@ class GenerateurProtocolePro(FPDF):
         self.set_y(-15)
         self.set_font("helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        date_edition = datetime.datetime.now().strftime("%d/%m/%Y a %H:%M")
+        
+        # Horodatage sur le fuseau horaire Pacific/Noumea
+        maintenant_nc = datetime.datetime.now(ZoneInfo("Pacific/Noumea"))
+        date_edition = maintenant_nc.strftime("%d/%m/%Y a %H:%M")
+        
         self.cell(0, 10, f"Document Officiel OPERA - Genere le {date_edition} - Page {self.page_no()}/{{nb}}", align="C")
 
 def creer_pdf_ronde(nom_site, mission, secteurs):
@@ -70,7 +77,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
 
-    # Cartouche de Mission (Page 1) à Y=32
+    # Page 1 : Cartouche de Mission calé à Y=32
     pdf.set_y(32)
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
