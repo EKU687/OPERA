@@ -1,8 +1,11 @@
+import os
 import streamlit as st
 import datetime
 from pdf_engines.pdf_sop import creer_pdf_sop
 
 def afficher_vue_sop(supabase, user_info, est_manager):
+    st.subheader("📜 Module Procédures Opérationnelles Normalisées (SOP)")
+    
     # 🔍 BLOC DE DÉBOGAGE LOGO (À retirer une fois validé)
     dossier_actuel = os.path.dirname(os.path.abspath(__file__))
     racine = os.path.dirname(dossier_actuel)
@@ -13,8 +16,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
         st.info(f"📁 Fichiers trouvés dans assets/ : {fichiers_assets}")
     else:
         st.error("❌ Le dossier 'assets/' est introuvable sur le serveur Streamlit Cloud.")
-    
-    st.subheader("📜 Module Procédures Opérationnelles Normalisées (SOP)")
     
     if est_manager:
         tab_consult, tab_saisie = st.tabs(["📄 Consultation & PDF", "🛠️ Saisie & Édition / MCO"])
@@ -79,7 +80,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
             if sites:
                 st.write("**Espace d'édition et de MCO des Procédures Opérationnelles (SOP)**")
                 
-                # Selection du Mode (Création ou Édition)
                 mode_action = st.radio(
                     "Action à effectuer :",
                     ["➕ Créer une nouvelle procédure", "✏️ Modifier / Réviser une procédure existante"],
@@ -89,7 +89,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                 site_rattache = st.selectbox("Site concerné :", options_sites.keys(), key="select_site_saisie_sop")
                 site_id_selectionne = options_sites[site_rattache]
                 
-                # Initialisation des variables par défaut
                 proc_a_modifier = None
                 default_code = ""
                 default_titre = ""
@@ -101,7 +100,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                 default_deroulement = ""
                 default_vigilance = ""
                 
-                # Si Mode Édition : Sélection et Pré-remplissage
                 if "Modifier" in mode_action:
                     procs_du_site = supabase.table("opera_procedures").select("*").eq("site_id", site_id_selectionne).execute().data
                     if procs_du_site:
@@ -109,7 +107,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                         choix_proc = st.selectbox("Procédure à modifier :", dict_procs.keys())
                         proc_a_modifier = dict_procs[choix_proc]
                         
-                        # Pré-remplissage des champs avec la donnée BDD
                         default_code = proc_a_modifier.get('code_doc', '')
                         default_titre = proc_a_modifier.get('titre', '')
                         default_version = proc_a_modifier.get('version', 'v1.1')
@@ -118,12 +115,9 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                         default_domaine = proc_a_modifier.get('domaine_application', '')
                         default_materiel = proc_a_modifier.get('materiel_requis', '')
                         
-                        # Reconstitution du texte déroulement
                         deroul_list = proc_a_modifier.get('deroulement', [])
                         if isinstance(deroul_list, list):
-                            lines = []
-                            for item in deroul_list:
-                                lines.append(item if isinstance(item, str) else item.get('action', ''))
+                            lines = [item if isinstance(item, str) else item.get('action', '') for item in deroul_list]
                             default_deroulement = "\n".join(lines)
                         else:
                             default_deroulement = str(deroul_list)
@@ -134,7 +128,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
 
                 st.markdown("---")
                 
-                # Formulaire Dynamique
                 with st.form("form_sop_mco", clear_on_submit=False):
                     col1, col2 = st.columns([1, 2])
                     with col1:
@@ -155,7 +148,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                     vigilance = st.text_area("⚠️ Points de vigilance / Sécurité critiques", value=default_vigilance)
 
                     col_btn1, col_btn2 = st.columns([2, 1])
-                    
                     with col_btn1:
                         libelle_bouton = "💾 Mettre à jour la Procédure" if proc_a_modifier else "💾 Enregistrer la Procédure SOP"
                         submitted = st.form_submit_button(libelle_bouton)
@@ -178,11 +170,9 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                             }
                             
                             if proc_a_modifier:
-                                # UPDATE BDD
                                 supabase.table("opera_procedures").update(payload).eq("id", proc_a_modifier['id']).execute()
-                                st.success(f"Procédure '{code_doc}' révisée et mise à jour avec succès.")
+                                st.success(f"Procédure '{code_doc}' révisée avec succès.")
                             else:
-                                # INSERT BDD
                                 supabase.table("opera_procedures").insert(payload).execute()
                                 st.success(f"Procédure '{code_doc} - {titre}' enregistrée.")
                                 
@@ -190,7 +180,6 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                         else:
                             st.error("La référence et le titre sont obligatoires.")
 
-                # Option de Suppression (MCO Critique)
                 if proc_a_modifier:
                     st.markdown("---")
                     with st.expander("🗑️ Zone de Suppression (Zone Sensible)"):
