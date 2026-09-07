@@ -9,7 +9,7 @@ class GenerateurProtocolePro(FPDF):
         self.site_nom = site_nom
         self.mission_titre = mission_titre
         self.horaire = horaire
-        self.set_margins(10, 38, 10)
+        self.set_margins(10, 45, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -37,7 +37,7 @@ class GenerateurProtocolePro(FPDF):
 
         self.set_draw_color(0, 51, 102)
         self.set_line_width(0.6)
-        self.line(10, 20, 200, 20)
+        self.line(10, 28, 200, 28)
 
     def footer(self):
         self.set_y(-15)
@@ -51,7 +51,7 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
     
-    pdf.set_y(25)
+    pdf.set_y(32)
 
     titre_clean = nettoyer_texte_pdf(mission['titre_mission']).upper()
     site_clean = nettoyer_texte_pdf(nom_site).upper()
