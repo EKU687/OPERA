@@ -26,7 +26,8 @@ class GenerateurSopPro(FPDF):
         self.date_ver = date_ver
         self.redacteur = redacteur
         
-        self.set_margins(10, 50, 10)
+        # Marge supérieure fixée à 35 mm pour TOUTES les pages (page 1, 2, 3...)
+        self.set_margins(10, 35, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -74,7 +75,7 @@ def creer_pdf_sop(proc, site_nom):
     pdf.add_page()
     w_effective = pdf.epw 
 
-    pdf.set_y(35)
+    # La top_margin (35 mm) gère automatiquement le positionnement sur toutes les pages.
 
     # Cartouche Titre + Référence
     pdf.set_fill_color(230, 238, 248)
@@ -135,7 +136,7 @@ def creer_pdf_sop(proc, site_nom):
         pdf.multi_cell(w_effective, 5, nettoyer_texte_pdf(proc['points_vigilance']), border='LRB')
         pdf.ln(6)
 
-    # 4. Historique & Gouvernance (Format date FR appliqué ici)
+    # 4. Historique & Gouvernance
     pdf.set_x(10)
     pdf.set_font("helvetica", "B", 9)
     pdf.set_draw_color(180, 180, 180)

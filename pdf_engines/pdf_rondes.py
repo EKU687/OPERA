@@ -23,8 +23,8 @@ class GenerateurProtocolePro(FPDF):
         self.mission_titre = mission_titre
         self.horaire = horaire
         
-        # Alignement strict sur la marge SOP (50 mm)
-        self.set_margins(10, 50, 10)
+        # Marge supérieure fixée strictement à 35 mm pour TOUTES les pages (page 1, 2, 3...)
+        self.set_margins(10, 35, 10)
         self.set_auto_page_break(auto=True, margin=15)
 
     def header(self):
@@ -69,10 +69,9 @@ def creer_pdf_ronde(nom_site, mission, secteurs):
     pdf.add_page()
     w_effective = pdf.epw
     
-    # Positionnement sous le header
-    pdf.set_y(35)
+    # La top_margin (35 mm) positionne automatiquement le curseur au bon endroit sur chaque page.
 
-    # Cartouche de Mission (Identique au style SOP)
+    # Cartouche de Mission
     pdf.set_fill_color(230, 238, 248)
     pdf.set_font("helvetica", "B", 10)
     pdf.set_text_color(0, 51, 102)
