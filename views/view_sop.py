@@ -153,6 +153,7 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                         supabase.table("opera_procedures")
                         .select("*")
                         .eq("site_id", site_id_selectionne)
+                        .eq("est_actif", True)
                         .order("code_doc")
                         .execute()
                         .data
@@ -206,7 +207,7 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                         default_vigilance = proc_a_modifier.get("points_vigilance", "")
                     else:
                         st.info(
-                            "Aucune procédure à modifier pour ce site."
+                            "Aucune procédure active à modifier pour ce site."
                             " Passez en mode 'Créer'."
                         )
 
@@ -386,21 +387,77 @@ def afficher_vue_sop(supabase, user_info, est_manager):
                         else:
                             st.error("La référence et le titre sont obligatoires.")
 
+                # =========================================================================
+                # ZONE DE SUPPRESSION / ARCHIVAGE (GÉRÉE EN SOFT DELETE + PURGE OPTIONNELLE)
+                # =========================================================================
                 if proc_a_modifier:
                     st.markdown("---")
-                    with st.expander("🗑️ Zone de Suppression (Zone Sensible)"):
+                    with st.expander("🗑️ Zone de Gestion & Archivage (Zone Sensible)"):
                         st.caption(
-                            "Cette action supprimera définitivement cette procédure du référentiel."
+                            "**Archivage (Recommandé) :** Désactive la procédure du référentiel "
+                            "opérationnel tout en conservant la traçabilité juridique et l'historique d'audit."
                         )
-                        if st.button(
-                            "🗑️ Supprimer cette procédure",
-                            type="primary",
-                            key="btn_del_sop",
-                        ):
-                            supabase.table("opera_procedures").delete().eq(
-                                "id", proc_a_modifier["id"]
-                            ).execute()
-                            st.warning(
-                                f"Procédure '{proc_a_modifier['code_doc']}' supprimée."
-                            )
-                            st.rerun()
+
+                        col_act1, col_act2 = st.columns(2)
+
+                        # Action 1 : Soft Delete (Conformité Sûreté)
+                        with col_act1:
+                            if st.button(
+                                "📦 Archiver / Désactiver la procédure",
+                                type="secondary",
+                                key="btn_soft_del_sop",
+                                use_container_width=True,
+                            ):
+                                target_id = proc_a_modifier["id"]
+
+                                # 1. Masquer la procédure
+                                supabase.table("opera_procedures").update(
+                                    {"est_actif": False}
+                                ).eq("id", target_id).execute()
+
+                                # 2. Désactiver les alerte ORBIS en cours
+                                supabase.table("opera_orbis_notifications").update(
+                                    {"est_active": False}
+                                ).eq("procedure_id", target_id).execute()
+
+                                st.success(
+                                    f"✅ Procédure '{proc_a_modifier['code_doc']}' archivée avec succès. Historique conservé."
+                                )
+                                st.rerun()
+
+                        # Action 2 : Purge Physique définitive (Nettoyage cascade)
+                        with col_act2:
+                            if st.button(
+                                "🔥 Purger définitivement (BDD)",
+                                type="primary",
+                                key="btn_hard_del_sop",
+                                use_container_width=True,
+                            ):
+                                target_id = proc_a_modifier["id"]
+
+                                try:
+                                    # Nettoyage préalable des tables enfants pour éviter la contrainte FK
+                                    supabase.table(
+                                        "opera_orbis_notifications"
+                                    ).delete().eq("procedure_id", target_id).execute()
+
+                                    supabase.table(
+                                        "opera_procedure_versions"
+                                    ).delete().eq("procedure_id", target_id).execute()
+
+                                    supabase.table("opera_emargements").delete().eq(
+                                        "procedure_id", target_id
+                                    ).execute()
+
+                                    # Suppression finale du parent
+                                    supabase.table("opera_procedures").delete().eq(
+                                        "id", target_id
+                                    ).execute()
+
+                                    st.warning(
+                                        f"🔥 Procédure '{proc_a_modifier['code_doc']}' et ses données liées ont été purgées de la BDD."
+                                    )
+                                    st.rerun()
+
+                                except Exception as e_del:
+                                    st.error(f"❌ Erreur lors de la purge : {e_del}")

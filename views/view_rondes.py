@@ -3,6 +3,7 @@
 Module OPERA : Modélisation, consultation et MCO des Rondes & Patrouilles.
 Gestion de l'arborescence (Sites -> Missions -> Secteurs -> Consignes)
 et synchronisation automatique des deltas vers ORBIS.
+Incorpore l'archivage sécurisé (Soft Delete) et la purge propre en cascade.
 
 Auteur : Éric KUTER
 Date de dernière révision : 28/09/2026
@@ -49,6 +50,7 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                 supabase.table("opera_missions")
                 .select("*, opera_secteurs(*, opera_consignes(*))")
                 .eq("site_id", site_id)
+                .eq("est_actif", True)
                 .execute()
             )
 
@@ -175,6 +177,7 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                                         "site_id": options_sites[site_rattache],
                                         "titre_mission": titre_mission,
                                         "horaire_cible": horaire_final,
+                                        "est_actif": True,
                                     }
                                 ).execute()
                                 st.success(
@@ -187,6 +190,7 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
             toutes_missions = (
                 supabase.table("opera_missions")
                 .select("id, titre_mission, site_id")
+                .eq("est_actif", True)
                 .execute()
                 .data
             )
@@ -359,7 +363,7 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                                 st.error("La description est obligatoire.")
 
         # ==========================================
-        # ONGLET 3 : MCO & PUBLICATION AUTOMATIQUE VERS ORBIS
+        # ONGLET 3 : MCO, PUBLICATION DELTA & GESTION DES SUPPRESSIONS
         # ==========================================
         with tab_mco:
             st.write(
@@ -477,7 +481,6 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
 
                                     code_doc_ronde = f"RND-{obj_site['nom_site'][:3].upper()}-{obj_mis['titre_mission'][:5].upper()}"
 
-                                    # A. Recherche ou création automatique de la procédure principale dans opera_procedures
                                     res_proc = (
                                         supabase.table("opera_procedures")
                                         .select("*")
@@ -486,7 +489,6 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                                         .execute()
                                     )
 
-                                    # B. Reconstruction du déroulement JSON complet du secteur
                                     res_all_consignes = (
                                         supabase.table("opera_consignes")
                                         .select("*")
@@ -535,7 +537,6 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                                         )
                                         proc_id = res_ins.data[0]["id"]
 
-                                    # C. Publication unifiée via le service (Hash SHA-256 + Audit + Notification ORBIS)
                                     res_pub = publier_nouvelle_version_procedure(
                                         supabase_client=supabase,
                                         procedure_id=proc_id,
@@ -556,12 +557,18 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                             else:
                                 st.error("La description ne peut pas être vide.")
 
+                # =========================================================================
+                # ZONE DE SUPPRESSION / ARCHIVAGE DE CONSIGNE (SOFT DELETE & PURGE)
+                # =========================================================================
                 with col_s:
                     st.write("**Zone critique**")
+
+                    # Bouton 1 : Suppression simple de la consigne (avec réalignement des index)
                     if st.button(
-                        "🗑️ Supprimer",
+                        "🗑️ Supprimer consigne",
                         type="primary",
                         key="btn_suppr_consigne_ronde",
+                        use_container_width=True,
                     ):
                         sec_id = obj_con["secteur_id"]
                         ordre_suppr = obj_con["ordre_execution"]
@@ -584,4 +591,23 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                             ).eq("id", c["id"]).execute()
 
                         st.warning("Consigne supprimée.")
+                        st.rerun()
+
+                    st.markdown("---")
+                    st.caption("📦 **Archivage Mission complète**")
+
+                    # Bouton 2 : Soft Delete de la Ronde complète (Désactivation sans casser la traçabilité)
+                    if st.button(
+                        "📦 Archiver cette Ronde",
+                        type="secondary",
+                        key="btn_soft_del_mission",
+                        use_container_width=True,
+                    ):
+                        supabase.table("opera_missions").update(
+                            {"est_actif": False}
+                        ).eq("id", obj_mis["id"]).execute()
+
+                        st.success(
+                            f"✅ Mission '{obj_mis['titre_mission']}' désactivée. Historique conservé."
+                        )
                         st.rerun()
