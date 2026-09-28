@@ -1,13 +1,59 @@
+# utils/portail_guard.py
+"""
+Module de contrôle d'accès et d'authentification SSO pour le Portail Central GNC.
+Intègre un mécanisme de contournement (Bypass) sécurisé pour le développement local.
+
+Auteur : Éric KUTER
+Date : 28/09/2026
+"""
+
 import streamlit as st
-from supabase import create_client, Client
+from supabase import Client
+
 
 def verifier_acces_depuis_portail(supabase: Client) -> dict:
-    """Vérifie que l'accès provient obligatoirement du Portail GNC."""
-    # 1. Vérification du cache de session local
-    if st.session_state.get("authenticated_from_portal") and st.session_state.get("user_info"):
+    """Vérifie que l'accès provient obligatoirement du Portail GNC.
+
+    En environnement local (IS_DEV = True), contourne la vérification SSO et
+    injecte un profil de test.
+    """
+    # =========================================================================
+    # 0. BYPASS MODE DÉVELOPPEMENT LOCAL (Seulement si IS_DEV = True dans secrets.toml)
+    # =========================================================================
+    is_dev_mode = False
+    try:
+        is_dev_mode = st.secrets.get("IS_DEV", False)
+    except Exception:
+        is_dev_mode = False
+
+    if is_dev_mode:
+        st.warning(
+            "⚠️ **MODE DÉVELOPPEMENT LOCAL ACTIF** — Vérification du Portail"
+            " GNC contournée."
+        )
+        mock_user = {
+            "id": "dev-user-001",
+            "login": "eric.kuter",
+            "nom": "Kuter Eric (Dev)",
+            "role": "manager",
+            "service": "SURETE_TEST",
+            "site_defaut": "SITE OUEMO",
+        }
+        st.session_state["authenticated_from_portal"] = True
+        st.session_state["user_info"] = mock_user
+        return mock_user
+
+    # =========================================================================
+    # 1. VÉRIFICATION DU CACHE DE SESSION LOCAL
+    # =========================================================================
+    if st.session_state.get("authenticated_from_portal") and st.session_state.get(
+        "user_info"
+    ):
         return st.session_state["user_info"]
 
-    # 2. Récupération du jeton dans l'URL (?session_token=...)
+    # =========================================================================
+    # 2. RÉCUPÉRATION DU JETON DANS L'URL (?session_token=...)
+    # =========================================================================
     query_params = st.query_params
     token_url = query_params.get("session_token")
 
@@ -17,7 +63,9 @@ def verifier_acces_depuis_portail(supabase: Client) -> dict:
             " lancée depuis le Portail Central GNC."
         )
 
-    # 3. Contrôle de sécurité dans la base de données
+    # =========================================================================
+    # 3. CONTRÔLE DE SÉCURITÉ DANS LA BASE DE DONNÉES SUPABASE
+    # =========================================================================
     try:
         res_session = (
             supabase.table("Sessions_Portail")
@@ -40,7 +88,9 @@ def verifier_acces_depuis_portail(supabase: Client) -> dict:
         if not user_info:
             afficher_ecran_blocage("Compte utilisateur introuvable ou désactivé.")
 
-        # 4. Validation et mise en cache
+        # =========================================================================
+        # 4. VALIDATION ET MISE EN CACHE DU PROFIL
+        # =========================================================================
         st.session_state["authenticated_from_portal"] = True
         st.session_state["user_info"] = user_info
         st.session_state["session_token_actuel"] = token_url
@@ -52,9 +102,9 @@ def verifier_acces_depuis_portail(supabase: Client) -> dict:
 
 
 def afficher_ecran_blocage(message_erreur: str):
-    """Écran de verrouillage stylisé."""
+    """Écran de verrouillage stylisé en cas d'accès direct non autorisé."""
     st.error("⛔ **ACCÈS NON AUTORISÉ — PORTAIL CENTRAL GNC REQUIS**")
-    
+
     st.markdown(
         f"""
         <div style="background-color: #fff3cd; border-left: 5px solid #ffc107; padding: 15px; border-radius: 6px; margin: 10px 0 20px 0; color: #856404;">
@@ -79,14 +129,16 @@ def afficher_ecran_blocage(message_erreur: str):
 
 
 def deconnecter_et_retourner_portail(supabase: Client):
-    """Invalide la session et redirige vers le Portail Central."""
+    """Invalide la session en base de données et redirige vers le Portail Central GNC."""
     token_actuel = st.session_state.get("session_token_actuel")
 
     if token_actuel:
         try:
-            supabase.table("Sessions_Portail").update({"actif": False}).eq("token", token_actuel).execute()
+            supabase.table("Sessions_Portail").update({"actif": False}).eq(
+                "token", token_actuel
+            ).execute()
         except Exception as e:
-            print(f"⚠️ Erreur d'invalidation : {e}")
+            print(f"⚠️ Erreur d'invalidation de session : {e}")
 
     st.session_state.clear()
     url_portail = "https://portail-gnc.streamlit.app"

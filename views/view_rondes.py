@@ -1,16 +1,31 @@
-import streamlit as st
+# view_rondes.py
+"""
+Module OPERA : Modélisation, consultation et MCO des Rondes & Patrouilles.
+Gestion de l'arborescence (Sites -> Missions -> Secteurs -> Consignes)
+et synchronisation automatique des deltas vers ORBIS.
+
+Auteur : Éric KUTER
+Date de dernière révision : 28/09/2026
+"""
+
 import datetime
+import json
+import streamlit as st
 from pdf_engines.pdf_rondes import creer_pdf_ronde
+from services.procedure_service import publier_nouvelle_version_procedure
+
 
 def afficher_vue_rondes(supabase, user_info, est_manager):
     st.subheader("🧭 Module Rondes & Patrouilles Séquentielles")
-    
+
     if est_manager:
-        tab_terrain, tab_creation, tab_mco = st.tabs([
-            "📄 Vue Terrain & PDF", 
-            "➕ Création & Arborescence", 
-            "🛠️ Modification / Suppression"
-        ])
+        tab_terrain, tab_creation, tab_mco = st.tabs(
+            [
+                "📄 Vue Terrain & PDF",
+                "➕ Création & Arborescence",
+                "🛠️ Modification / Suppression & Publication ORBIS",
+            ]
+        )
     else:
         tab_terrain = st.container()
 
@@ -20,41 +35,65 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
     with tab_terrain:
         reponse_sites = supabase.table("opera_sites").select("*").execute()
         sites = reponse_sites.data
-        
+
         if sites:
             options_sites = {site["nom_site"]: site["id"] for site in sites}
-            site_choisi = st.selectbox("📍 Sélectionner un site opérationnel :", options_sites.keys(), key="select_terrain_rondes")
+            site_choisi = st.selectbox(
+                "📍 Sélectionner un site opérationnel :",
+                options_sites.keys(),
+                key="select_terrain_rondes",
+            )
             site_id = options_sites[site_choisi]
-            
-            arborescence = supabase.table("opera_missions") \
-                .select("*, opera_secteurs(*, opera_consignes(*))") \
-                .eq("site_id", site_id) \
+
+            arborescence = (
+                supabase.table("opera_missions")
+                .select("*, opera_secteurs(*, opera_consignes(*))")
+                .eq("site_id", site_id)
                 .execute()
-                
+            )
+
             missions = arborescence.data
-            
+
             if missions:
                 for mission in missions:
-                    st.markdown(f"### 🕒 {mission['titre_mission']} ({mission['horaire_cible']})")
-                    secteurs_tries = sorted(mission.get('opera_secteurs', []), key=lambda x: x['ordre_passage'])
-                    
+                    st.markdown(
+                        f"### 🕒 {mission['titre_mission']} ({mission['horaire_cible']})"
+                    )
+                    secteurs_tries = sorted(
+                        mission.get("opera_secteurs", []),
+                        key=lambda x: x["ordre_passage"],
+                    )
+
                     for secteur in secteurs_tries:
-                        with st.expander(f"🏢 Secteur : {secteur['nom_secteur']}", expanded=True):
-                            consignes_triees = sorted(secteur.get('opera_consignes', []), key=lambda x: x['ordre_execution'])
+                        with st.expander(
+                            f"🏢 Secteur : {secteur['nom_secteur']}",
+                            expanded=True,
+                        ):
+                            consignes_triees = sorted(
+                                secteur.get("opera_consignes", []),
+                                key=lambda x: x["ordre_execution"],
+                            )
                             for consigne in consignes_triees:
-                                icone = "👁️" if consigne['type_action'] == 'Vérification' else "🔒"
-                                st.write(f"{icone} **{consigne['type_action']}** : {consigne['description']}")
-                    
+                                icone = (
+                                    "👁️"
+                                    if consigne["type_action"] == "Vérification"
+                                    else "🔒"
+                                )
+                                st.write(
+                                    f"{icone} **{consigne['type_action']}** :"
+                                    f" {consigne['description']}"
+                                )
+
                     st.markdown("---")
                     fichier_pdf = creer_pdf_ronde(site_choisi, mission, secteurs_tries)
                     nom_fichier = f"Protocole_{site_choisi}_{mission['titre_mission'].replace(' ', '_')}.pdf"
-                    
+
                     st.download_button(
                         label="📄 Télécharger la fiche d'intervention PDF",
                         data=fichier_pdf,
                         file_name=nom_fichier,
                         mime="application/pdf",
-                        key=f"dl_pdf_{mission['id']}"
+                        key=f"dl_pdf_{mission['id']}",
                     )
             else:
                 st.info("Aucune ronde active enregistrée pour ce site.")
@@ -67,7 +106,7 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
     if est_manager:
         with tab_creation:
             st.write("**Espace d'extension du référentiel des rondes**")
-            
+
             # Bloc 1 : Site
             with st.expander("📍 1. Ajouter un nouveau Site", expanded=False):
                 with st.form("form_site_rondes", clear_on_submit=True):
@@ -75,7 +114,12 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                     adresse_site = st.text_input("Adresse / Localisation")
                     if st.form_submit_button("Enregistrer le site"):
                         if nom_nouveau_site.strip():
-                            supabase.table("opera_sites").insert({"nom_site": nom_nouveau_site, "adresse": adresse_site}).execute()
+                            supabase.table("opera_sites").insert(
+                                {
+                                    "nom_site": nom_nouveau_site,
+                                    "adresse": adresse_site,
+                                }
+                            ).execute()
                             st.success(f"Site '{nom_nouveau_site}' opérationnel.")
                             st.rerun()
                         else:
@@ -84,70 +128,138 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
             # Bloc 2 : Mission
             with st.expander("🕒 2. Ajouter une Mission (Ronde)", expanded=False):
                 if sites:
-                    site_rattache = st.selectbox("Lier au site :", options_sites.keys(), key="select_admin_mission_rondes")
+                    site_rattache = st.selectbox(
+                        "Lier au site :",
+                        options_sites.keys(),
+                        key="select_admin_mission_rondes",
+                    )
                     with st.form("form_mission_rondes", clear_on_submit=True):
-                        titre_mission = st.text_input("Type de mission (ex: Ronde de fermeture, Ronde Intérieure)")
-                        
+                        titre_mission = st.text_input(
+                            "Type de mission (ex: Ronde de fermeture, Ronde Intérieure)"
+                        )
+
                         mode_horaire = st.radio(
                             "Désignation de la fréquence / horaire :",
-                            ["Horaire fixe (ex: 20:00)", "Fréquence récurrente (ex: Toutes les heures)"],
-                            horizontal=True
+                            [
+                                "Horaire fixe (ex: 20:00)",
+                                "Fréquence récurrente (ex: Toutes les heures)",
+                            ],
+                            horizontal=True,
                         )
-                        
+
                         col_h1, col_h2 = st.columns(2)
                         with col_h1:
-                            horaire_fixe = st.time_input("Horaire fixe", datetime.time(20, 00))
+                            horaire_fixe = st.time_input(
+                                "Horaire fixe", datetime.time(20, 0)
+                            )
                         with col_h2:
                             frequence_texte = st.selectbox(
-                                "Fréquence récurrente", 
-                                ["Toutes les heures", "Toutes les 2 heures", "Toutes les 3 heures", "Continu / Permanence"]
+                                "Fréquence récurrente",
+                                [
+                                    "Toutes les heures",
+                                    "Toutes les 2 heures",
+                                    "Toutes les 3 heures",
+                                    "Continu / Permanence",
+                                ],
                             )
-                        
+
                         if st.form_submit_button("Enregistrer la mission"):
                             if titre_mission.strip():
-                                horaire_final = horaire_fixe.strftime("%H:%M") if "fixe" in mode_horaire else frequence_texte
-                                supabase.table("opera_missions").insert({
-                                    "site_id": options_sites[site_rattache],
-                                    "titre_mission": titre_mission,
-                                    "horaire_cible": horaire_final
-                                }).execute()
-                                st.success(f"Mission '{titre_mission}' ({horaire_final}) enregistrée.")
+                                horaire_final = (
+                                    horaire_fixe.strftime("%H:%M")
+                                    if "fixe" in mode_horaire
+                                    else frequence_texte
+                                )
+                                supabase.table("opera_missions").insert(
+                                    {
+                                        "site_id": options_sites[site_rattache],
+                                        "titre_mission": titre_mission,
+                                        "horaire_cible": horaire_final,
+                                    }
+                                ).execute()
+                                st.success(
+                                    f"Mission '{titre_mission}' ({horaire_final}) enregistrée."
+                                )
                                 st.rerun()
                             else:
                                 st.error("Le titre de la mission est obligatoire.")
 
-            toutes_missions = supabase.table("opera_missions").select("id, titre_mission, site_id").execute().data
-            tous_secteurs = supabase.table("opera_secteurs").select("id, nom_secteur, mission_id").execute().data
+            toutes_missions = (
+                supabase.table("opera_missions")
+                .select("id, titre_mission, site_id")
+                .execute()
+                .data
+            )
+            tous_secteurs = (
+                supabase.table("opera_secteurs")
+                .select("id, nom_secteur, mission_id")
+                .execute()
+                .data
+            )
 
             # Bloc 3 : Secteur
             with st.expander("🏢 3. Ajouter un Secteur (Zone)", expanded=False):
                 if toutes_missions:
-                    options_missions = {f"{next((s['nom_site'] for s in sites if s['id'] == m['site_id']), 'Site Inconnu')} - {m['titre_mission']}": m['id'] for m in toutes_missions}
-                    mission_choisie = st.selectbox("Lier à la mission :", options_missions.keys(), key="select_admin_secteur_rondes")
+                    options_missions = {
+                        f"{next((s['nom_site'] for s in sites if s['id'] == m['site_id']), 'Site Inconnu')} - {m['titre_mission']}": m[
+                            "id"
+                        ]
+                        for m in toutes_missions
+                    }
+                    mission_choisie = st.selectbox(
+                        "Lier à la mission :",
+                        options_missions.keys(),
+                        key="select_admin_secteur_rondes",
+                    )
                     mission_id_cible = options_missions[mission_choisie]
-                    
-                    secteurs_existants = supabase.table("opera_secteurs").select("ordre_passage, nom_secteur").eq("mission_id", mission_id_cible).order("ordre_passage").execute().data
+
+                    secteurs_existants = (
+                        supabase.table("opera_secteurs")
+                        .select("ordre_passage, nom_secteur")
+                        .eq("mission_id", mission_id_cible)
+                        .order("ordre_passage")
+                        .execute()
+                        .data
+                    )
                     if secteurs_existants:
                         st.caption("🏢 Secteurs configurés dans ce parcours :")
                         st.dataframe(secteurs_existants, use_container_width=True)
-                        prochain_ordre_sec = max([s['ordre_passage'] for s in secteurs_existants]) + 1
+                        prochain_ordre_sec = (
+                            max([s["ordre_passage"] for s in secteurs_existants]) + 1
+                        )
                     else:
                         prochain_ordre_sec = 1
 
                     with st.form("form_secteur_rondes", clear_on_submit=True):
                         nom_secteur = st.text_input("Nom du Secteur (ex: Zone ZA01)")
-                        ordre_passage = st.number_input("Ordre de passage", min_value=1, value=prochain_ordre_sec, step=1)
+                        ordre_passage = st.number_input(
+                            "Ordre de passage",
+                            min_value=1,
+                            value=prochain_ordre_sec,
+                            step=1,
+                        )
                         if st.form_submit_button("Enregistrer le secteur"):
                             if nom_secteur.strip():
-                                sec_a_decaler = supabase.table("opera_secteurs").select("id, ordre_passage").eq("mission_id", mission_id_cible).gte("ordre_passage", ordre_passage).execute().data
+                                sec_a_decaler = (
+                                    supabase.table("opera_secteurs")
+                                    .select("id, ordre_passage")
+                                    .eq("mission_id", mission_id_cible)
+                                    .gte("ordre_passage", ordre_passage)
+                                    .execute()
+                                    .data
+                                )
                                 for s in sec_a_decaler:
-                                    supabase.table("opera_secteurs").update({"ordre_passage": s["ordre_passage"] + 1}).eq("id", s["id"]).execute()
+                                    supabase.table("opera_secteurs").update(
+                                        {"ordre_passage": s["ordre_passage"] + 1}
+                                    ).eq("id", s["id"]).execute()
 
-                                supabase.table("opera_secteurs").insert({
-                                    "mission_id": mission_id_cible,
-                                    "nom_secteur": nom_secteur,
-                                    "ordre_passage": ordre_passage
-                                }).execute()
+                                supabase.table("opera_secteurs").insert(
+                                    {
+                                        "mission_id": mission_id_cible,
+                                        "nom_secteur": nom_secteur,
+                                        "ordre_passage": ordre_passage,
+                                    }
+                                ).execute()
                                 st.success(f"Secteur '{nom_secteur}' inséré.")
                                 st.rerun()
                             else:
@@ -158,98 +270,318 @@ def afficher_vue_rondes(supabase, user_info, est_manager):
                 if tous_secteurs and toutes_missions:
                     options_secteurs = {}
                     for sec in tous_secteurs:
-                        m_parent = next((m for m in toutes_missions if m['id'] == sec['mission_id']), None)
+                        m_parent = next(
+                            (
+                                m
+                                for m in toutes_missions
+                                if m["id"] == sec["mission_id"]
+                            ),
+                            None,
+                        )
                         if m_parent:
-                            s_parent = next((s['nom_site'] for s in sites if s['id'] == m_parent['site_id']), "Site Inconnu")
-                            options_secteurs[f"{s_parent} - {m_parent['titre_mission']} > {sec['nom_secteur']}"] = sec['id']
+                            s_parent = next(
+                                (
+                                    s["nom_site"]
+                                    for s in sites
+                                    if s["id"] == m_parent["site_id"]
+                                ),
+                                "Site Inconnu",
+                            )
+                            options_secteurs[
+                                f"{s_parent} - {m_parent['titre_mission']} >"
+                                f" {sec['nom_secteur']}"
+                            ] = sec["id"]
 
-                    secteur_choisi = st.selectbox("Lier au secteur :", options_secteurs.keys(), key="select_admin_consigne_rondes")
+                    secteur_choisi = st.selectbox(
+                        "Lier au secteur :",
+                        options_secteurs.keys(),
+                        key="select_admin_consigne_rondes",
+                    )
                     secteur_id_cible = options_secteurs[secteur_choisi]
-                    
-                    consignes_existantes = supabase.table("opera_consignes").select("ordre_execution, type_action, description").eq("secteur_id", secteur_id_cible).order("ordre_execution").execute().data
+
+                    consignes_existantes = (
+                        supabase.table("opera_consignes")
+                        .select("ordre_execution, type_action, description")
+                        .eq("secteur_id", secteur_id_cible)
+                        .order("ordre_execution")
+                        .execute()
+                        .data
+                    )
                     if consignes_existantes:
                         st.caption("📋 Consignes configurées dans cette zone :")
                         st.dataframe(consignes_existantes, use_container_width=True)
-                        prochain_ordre_con = max([c['ordre_execution'] for c in consignes_existantes]) + 1
+                        prochain_ordre_con = (
+                            max([c["ordre_execution"] for c in consignes_existantes])
+                            + 1
+                        )
                     else:
                         prochain_ordre_con = 1
 
                     with st.form("form_consigne_rondes", clear_on_submit=True):
-                        type_action = st.selectbox("Nature de l'action", ["Vérification", "Condamnation", "Pointage", "Alerte"])
+                        type_action = st.selectbox(
+                            "Nature de l'action",
+                            ["Vérification", "Condamnation", "Pointage", "Alerte"],
+                        )
                         description = st.text_input("Action précise")
-                        ordre_execution = st.number_input("Ordre d'exécution", min_value=1, value=prochain_ordre_con, step=1)
-                        
+                        ordre_execution = st.number_input(
+                            "Ordre d'exécution",
+                            min_value=1,
+                            value=prochain_ordre_con,
+                            step=1,
+                        )
+
                         if st.form_submit_button("Enregistrer la consigne"):
                             if description.strip():
-                                consignes_a_decaler = supabase.table("opera_consignes").select("id, ordre_execution").eq("secteur_id", secteur_id_cible).gte("ordre_execution", ordre_execution).execute().data
+                                consignes_a_decaler = (
+                                    supabase.table("opera_consignes")
+                                    .select("id, ordre_execution")
+                                    .eq("secteur_id", secteur_id_cible)
+                                    .gte("ordre_execution", ordre_execution)
+                                    .execute()
+                                    .data
+                                )
                                 for c in consignes_a_decaler:
-                                    supabase.table("opera_consignes").update({"ordre_execution": c["ordre_execution"] + 1}).eq("id", c["id"]).execute()
+                                    supabase.table("opera_consignes").update(
+                                        {"ordre_execution": c["ordre_execution"] + 1}
+                                    ).eq("id", c["id"]).execute()
 
-                                supabase.table("opera_consignes").insert({
-                                    "secteur_id": secteur_id_cible,
-                                    "type_action": type_action,
-                                    "description": description,
-                                    "ordre_execution": ordre_execution
-                                }).execute()
+                                supabase.table("opera_consignes").insert(
+                                    {
+                                        "secteur_id": secteur_id_cible,
+                                        "type_action": type_action,
+                                        "description": description,
+                                        "ordre_execution": ordre_execution,
+                                    }
+                                ).execute()
                                 st.success("Action terrain ajoutée.")
                                 st.rerun()
                             else:
                                 st.error("La description est obligatoire.")
 
-        # ONGLET 3 : MCO
+        # ==========================================
+        # ONGLET 3 : MCO & PUBLICATION AUTOMATIQUE VERS ORBIS
+        # ==========================================
         with tab_mco:
-            st.write("**Maintien en Condition Opérationnelle (Rondes)**")
-            toutes_consignes = supabase.table("opera_consignes").select("*").execute().data
-            
-            if toutes_consignes and tous_secteurs and toutes_missions and sites:
-                options_mco_consigne = {}
-                for con in toutes_consignes:
-                    sec_p = next((s for s in tous_secteurs if s['id'] == con['secteur_id']), None)
-                    if sec_p:
-                        mis_p = next((m for m in toutes_missions if m['id'] == sec_p['mission_id']), None)
-                        if mis_p:
-                            site_p = next((s for s in sites if s['id'] == mis_p['site_id']), None)
-                            nom_site = site_p['nom_site'] if site_p else "Site Inconnu"
-                            libelle = f"[{nom_site.upper()}] > {mis_p['titre_mission']} > {sec_p['nom_secteur']} | Pos {con['ordre_execution']} : [{con['type_action']}] {con['description']}"
-                            options_mco_consigne[libelle] = con
+            st.write(
+                "**Maintien en Condition Opérationnelle & Publication des Deltas**"
+            )
+            toutes_consignes = (
+                supabase.table("opera_consignes").select("*").execute().data
+            )
 
-                if options_mco_consigne:
-                    consigne_selectionnee = st.selectbox("Sélectionner l'action à modifier ou supprimer :", options_mco_consigne.keys())
-                    obj_con = options_mco_consigne[consigne_selectionnee]
-                    
-                    st.markdown("---")
-                    col_m, col_s = st.columns([3, 1])
-                    
-                    with col_m:
-                        with st.form("form_edit_con_rondes"):
-                            st.write("**Édition de l'action**")
-                            nouveau_type = st.selectbox("Type", ["Vérification", "Condamnation", "Pointage", "Alerte"], index=["Vérification", "Condamnation", "Pointage", "Alerte"].index(obj_con['type_action']))
-                            nouvelle_desc = st.text_input("Description", value=obj_con['description'])
-                            nouvel_ordre = st.number_input("Ordre d'exécution", value=obj_con['ordre_execution'], min_value=1)
-                            
-                            if st.form_submit_button("💾 Mettre à jour"):
-                                if nouvelle_desc.strip():
-                                    supabase.table("opera_consignes").update({
+            options_mco_consigne = {}
+            if toutes_consignes and tous_secteurs and toutes_missions and sites:
+                for con in toutes_consignes:
+                    sec_p = next(
+                        (s for s in tous_secteurs if s["id"] == con["secteur_id"]),
+                        None,
+                    )
+                    if sec_p:
+                        mis_p = next(
+                            (
+                                m
+                                for m in toutes_missions
+                                if m["id"] == sec_p["mission_id"]
+                            ),
+                            None,
+                        )
+                        if mis_p:
+                            site_p = next(
+                                (s for s in sites if s["id"] == mis_p["site_id"]),
+                                None,
+                            )
+                            nom_site = site_p["nom_site"] if site_p else "Site Inconnu"
+                            libelle = (
+                                f"[{nom_site.upper()}] > {mis_p['titre_mission']} >"
+                                f" {sec_p['nom_secteur']} | Pos"
+                                f" {con['ordre_execution']} :"
+                                f" [{con['type_action']}] {con['description']}"
+                            )
+                            options_mco_consigne[libelle] = {
+                                "consigne": con,
+                                "mission": mis_p,
+                                "site": site_p,
+                                "secteur": sec_p,
+                            }
+
+            if options_mco_consigne:
+                consigne_selectionnee = st.selectbox(
+                    "Sélectionner l'action à modifier ou supprimer :",
+                    options_mco_consigne.keys(),
+                )
+                item_mco = options_mco_consigne[consigne_selectionnee]
+                obj_con = item_mco["consigne"]
+                obj_mis = item_mco["mission"]
+                obj_site = item_mco["site"]
+                obj_sec = item_mco["secteur"]
+
+                st.markdown("---")
+                col_m, col_s = st.columns([3, 1])
+
+                with col_m:
+                    with st.form("form_edit_con_rondes"):
+                        st.write("**Édition de l'action de ronde**")
+                        type_options = [
+                            "Vérification",
+                            "Condamnation",
+                            "Pointage",
+                            "Alerte",
+                        ]
+                        idx_type = (
+                            type_options.index(obj_con["type_action"])
+                            if obj_con["type_action"] in type_options
+                            else 0
+                        )
+                        nouveau_type = st.selectbox(
+                            "Type", type_options, index=idx_type
+                        )
+                        nouvelle_desc = st.text_input(
+                            "Description", value=obj_con["description"]
+                        )
+                        nouvel_ordre = st.number_input(
+                            "Ordre d'exécution",
+                            value=obj_con["ordre_execution"],
+                            min_value=1,
+                        )
+
+                        st.markdown("---")
+                        st.caption("🚨 **Paramètres de Notification ORBIS**")
+                        publier_vers_orbis = st.checkbox(
+                            "Notifier et imposer l'émargement de ce delta aux agents sur ORBIS",
+                            value=True,
+                        )
+                        nouvelle_version_input = st.text_input(
+                            "Incrément de version (ex: 1.3) :",
+                            value="1.3",
+                        )
+
+                        if st.form_submit_button(
+                            "💾 Mettre à jour & Publier vers ORBIS"
+                        ):
+                            if nouvelle_desc.strip():
+                                # 1. Mise à jour de la consigne granulaire en BDD
+                                supabase.table("opera_consignes").update(
+                                    {
                                         "type_action": nouveau_type,
                                         "description": nouvelle_desc,
-                                        "ordre_execution": nouvel_ordre
-                                    }).eq("id", obj_con['id']).execute()
-                                    st.success("Consigne mise à jour.")
-                                    st.rerun()
-                                else:
-                                    st.error("La description ne peut pas être vide.")
-                    
-                    with col_s:
-                        st.write("**Zone critique**")
-                        if st.button("🗑️ Supprimer", type="primary", key="btn_suppr_consigne_ronde"):
-                            sec_id = obj_con['secteur_id']
-                            ordre_suppr = obj_con['ordre_execution']
-                            
-                            supabase.table("opera_consignes").delete().eq("id", obj_con['id']).execute()
-                            
-                            realignement = supabase.table("opera_consignes").select("id, ordre_execution").eq("secteur_id", sec_id).gt("ordre_execution", ordre_suppr).execute().data
-                            for c in realignement:
-                                supabase.table("opera_consignes").update({"ordre_execution": c["ordre_execution"] - 1}).eq("id", c["id"]).execute()
+                                        "ordre_execution": nouvel_ordre,
+                                    }
+                                ).eq("id", obj_con["id"]).execute()
 
-                            st.warning("Consigne supprimée.")
-                            st.rerun()
+                                # 2. Si publication ORBIS demandée
+                                if publier_vers_orbis and obj_site:
+                                    resume_delta = (
+                                        f"✏️ [MODIFICATION - {obj_sec['nom_secteur']}] "
+                                        f"{obj_mis['titre_mission']} - Action [{nouveau_type}] : {nouvelle_desc}"
+                                    )
+
+                                    code_doc_ronde = f"RND-{obj_site['nom_site'][:3].upper()}-{obj_mis['titre_mission'][:5].upper()}"
+
+                                    # A. Recherche ou création automatique de la procédure principale dans opera_procedures
+                                    res_proc = (
+                                        supabase.table("opera_procedures")
+                                        .select("*")
+                                        .eq("site_id", obj_site["id"])
+                                        .eq("code_doc", code_doc_ronde)
+                                        .execute()
+                                    )
+
+                                    # B. Reconstruction du déroulement JSON complet du secteur
+                                    res_all_consignes = (
+                                        supabase.table("opera_consignes")
+                                        .select("*")
+                                        .eq("secteur_id", obj_sec["id"])
+                                        .order("ordre_execution")
+                                        .execute()
+                                        .data
+                                        or []
+                                    )
+
+                                    deroulement_json_complet = [
+                                        {
+                                            "step": c["ordre_execution"],
+                                            "zone": obj_sec["nom_secteur"],
+                                            "action": c["description"],
+                                            "type": c["type_action"],
+                                        }
+                                        for c in res_all_consignes
+                                    ]
+
+                                    payload_proc = {
+                                        "site_id": obj_site["id"],
+                                        "code_doc": code_doc_ronde,
+                                        "titre": f"Ronde {obj_mis['titre_mission']}",
+                                        "objectif": f"Exécution séquentielle de la ronde {obj_mis['titre_mission']}",
+                                        "domaine_application": "Rondes Sûreté Terrain",
+                                        "deroulement": deroulement_json_complet,
+                                        "version": nouvelle_version_input,
+                                        "redacteur": user_info.get(
+                                            "full_name",
+                                            user_info.get("nom", "Éric KUTER"),
+                                        ),
+                                        "est_actif": True,
+                                    }
+
+                                    if res_proc.data:
+                                        proc_id = res_proc.data[0]["id"]
+                                        supabase.table("opera_procedures").update(
+                                            payload_proc
+                                        ).eq("id", proc_id).execute()
+                                    else:
+                                        res_ins = (
+                                            supabase.table("opera_procedures")
+                                            .insert(payload_proc)
+                                            .execute()
+                                        )
+                                        proc_id = res_ins.data[0]["id"]
+
+                                    # C. Publication unifiée via le service (Hash SHA-256 + Audit + Notification ORBIS)
+                                    res_pub = publier_nouvelle_version_procedure(
+                                        supabase_client=supabase,
+                                        procedure_id=proc_id,
+                                        nouvelle_version=nouvelle_version_input,
+                                        changelog=resume_delta,
+                                        nouveau_deroulement_json=deroulement_json_complet,
+                                        redacteur=user_info.get(
+                                            "full_name",
+                                            user_info.get("nom", "Éric KUTER"),
+                                        ),
+                                        resume_delta_orbis=resume_delta,
+                                    )
+
+                                    st.info(f"🔔 {res_pub['message']}")
+
+                                st.success("Consigne mise à jour avec succès.")
+                                st.rerun()
+                            else:
+                                st.error("La description ne peut pas être vide.")
+
+                with col_s:
+                    st.write("**Zone critique**")
+                    if st.button(
+                        "🗑️ Supprimer",
+                        type="primary",
+                        key="btn_suppr_consigne_ronde",
+                    ):
+                        sec_id = obj_con["secteur_id"]
+                        ordre_suppr = obj_con["ordre_execution"]
+
+                        supabase.table("opera_consignes").delete().eq(
+                            "id", obj_con["id"]
+                        ).execute()
+
+                        realignement = (
+                            supabase.table("opera_consignes")
+                            .select("id, ordre_execution")
+                            .eq("secteur_id", sec_id)
+                            .gt("ordre_execution", ordre_suppr)
+                            .execute()
+                            .data
+                        )
+                        for c in realignement:
+                            supabase.table("opera_consignes").update(
+                                {"ordre_execution": c["ordre_execution"] - 1}
+                            ).eq("id", c["id"]).execute()
+
+                        st.warning("Consigne supprimée.")
+                        st.rerun()
